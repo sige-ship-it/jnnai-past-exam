@@ -1,791 +1,358 @@
 <!DOCTYPE html>
-<html lang="ja" class="h-full">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>国語 過去問総合学習ポータル & スマホ演習アプリ</title>
-    <!-- Tailwind CSS CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>過去問学習ポータル - Interactive Exam App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        button, select, input {
-            touch-action: manipulation;
-        }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 100%;
-            height: 220px;
-            max-height: 260px;
-            margin: 0 auto;
-        }
-        @media (min-width: 640px) {
-            .chart-container {
-                height: 280px;
-                max-height: 320px;
-            }
-        }
-        .custom-scroll::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 4px;
-        }
+        .marker-highlight { background-color: #fef08a; padding: 0 4px; border-radius: 2px; font-weight: bold; }
+        .underline-target { border-bottom: 2px solid #1e40af; font-weight: bold; }
+        .blank-space { border-bottom: 2px solid #374151; display: inline-block; min-width: 30px; text-align: center; font-weight: bold; color: #1d4ed8; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased h-full flex flex-col selection:bg-indigo-500 selection:text-white">
-
-    <!-- モバイル固定ヘッダー -->
-    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 shrink-0">
-        <div class="max-w-6xl mx-auto px-3 py-2.5 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <span class="bg-indigo-600 text-white font-bold text-xs px-2 py-1 rounded">国語 past-exam</span>
-                <h1 class="text-sm sm:text-base font-bold truncate max-w-[180px] sm:max-w-none">人間学部 入試対策</h1>
-            </div>
-            
-            <div class="flex space-x-1">
-                <button onclick="switchTab('quiz')" id="nav-quiz" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow-sm flex items-center space-x-1">
-                    <span>📝 演習</span>
-                </button>
-                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-300 hover:bg-slate-800 flex items-center space-x-1">
-                    <span>📊 分析</span>
-                </button>
-                <button onclick="switchTab('vocab')" id="nav-vocab" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-300 hover:bg-slate-800 flex items-center space-x-1">
-                    <span>📚 辞書</span>
-                </button>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+    <header class="bg-slate-800 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <span>📚</span> 日本語国語入試過去問 演習ポータル
+            </h1>
+            <div id="year-selector" class="flex gap-2">
+                <button onclick="loadYear('2022')" class="year-btn px-3 py-1.5 rounded text-sm font-semibold bg-slate-700 hover:bg-slate-600 transition" data-year="2022">2022年度</button>
+                <button onclick="loadYear('2023')" class="year-btn px-3 py-1.5 rounded text-sm font-semibold bg-slate-700 hover:bg-slate-600 transition" data-year="2023">2023年度</button>
+                <button onclick="loadYear('2025')" class="year-btn px-3 py-1.5 rounded text-sm font-semibold bg-slate-700 hover:bg-slate-600 transition" data-year="2025">2025年度</button>
+                <button onclick="loadYear('2026')" class="year-btn px-3 py-1.5 rounded text-sm font-semibold bg-slate-700 hover:bg-slate-600 transition" data-year="2026">2026年度</button>
             </div>
         </div>
     </header>
 
-    <!-- メイン表示領域 -->
-    <main class="flex-1 max-w-5xl w-full mx-auto p-2.5 sm:p-4 overflow-y-auto">
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 本文・問題表示エリア -->
+        <div class="lg:col-span-8 space-y-6">
+            <div id="passage-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden">
+                <h2 id="passage-title" class="text-lg font-bold text-slate-900 border-b pb-2 mb-4"></h2>
+                <div id="passage-text" class="prose max-w-none text-slate-700 leading-relaxed space-y-4 text-justify whitespace-pre-wrap"></div>
+            </div>
 
-        <!-- ==================== TAB 1: 過去問クイズ演習 ==================== -->
-        <section id="tab-quiz" class="space-y-3">
-            
-            <!-- コントロールバー -->
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center space-x-2 w-full sm:w-auto">
-                    <label class="text-xs font-bold text-slate-500 shrink-0">年度:</label>
-                    <select id="select-year" onchange="loadQuizYear(this.value)" class="flex-1 sm:flex-initial bg-slate-100 font-bold text-slate-800 text-xs sm:text-sm rounded-lg px-2.5 py-2 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="2022">2022年度 国語 (33問)</option>
-                        <option value="2023">2023年度 国語 (33問)</option>
-                        <option value="2025">2025年度 国語 (33問)</option>
-                        <option value="2026">2026年度 国語 (33问) 【完全原本校正版】</option>
-                    </select>
+            <div id="question-card" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <span id="question-category" class="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full"></span>
+                    <span id="question-number" class="text-sm font-medium text-slate-500"></span>
                 </div>
+                <h3 id="question-title" class="text-lg font-bold text-slate-900 mb-6"></h3>
+                <div id="options-container" class="space-y-3 mb-6"></div>
+                <div id="explanation-box" class="hidden p-4 rounded-lg border"></div>
                 
-                <div class="flex items-center space-x-2 w-full sm:w-auto justify-between">
-                    <select id="select-section" onchange="filterQuizSection(this.value)" class="bg-slate-100 font-semibold text-slate-700 text-xs rounded-lg px-2 py-1.5 border border-slate-300">
-                        <option value="all">全33問 表示</option>
-                        <option value="1">大問1：漢字 (問1-10)</option>
-                        <option value="2">大問2：語句・熟語 (問11-25)</option>
-                        <option value="3">大問3：長文読解 (問26-33)</option>
-                    </select>
-
-                    <button onclick="resetCurrentYearQuiz()" class="text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1.5 rounded-lg font-bold shrink-0">
-                        🔄 クリア
-                    </button>
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+                    <button id="prev-btn" onclick="navigateQuestion(-1)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">前の問題</button>
+                    <button id="next-btn" onclick="navigateQuestion(1)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">次の問題</button>
                 </div>
-            </div>
-
-            <!-- 問題番号クイック選択ピルバー -->
-            <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-                <div class="text-[10px] font-bold text-slate-400 mb-1 px-1 flex justify-between">
-                    <span>問題番号タップで移動</span>
-                    <span id="quiz-progress-text">1 / 33</span>
-                </div>
-                <div id="question-picker-bar" class="flex space-x-1.5 overflow-x-auto custom-scroll pb-1">
-                    <!-- 動的生成 -->
-                </div>
-            </div>
-
-            <!-- 演習レイアウト -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-
-                <!-- PC表示用：左側固定長文本文パネル -->
-                <div id="desktop-honbun-panel" class="hidden lg:block lg:col-span-5 bg-white p-4 rounded-xl border border-indigo-100 shadow-sm sticky top-16 max-h-[78vh] overflow-y-auto custom-scroll">
-                    <div class="flex items-center justify-between border-b pb-2 mb-2">
-                        <span class="bg-indigo-100 text-indigo-800 font-bold text-xs px-2 py-0.5 rounded">大問3 読解本文</span>
-                        <span id="desktop-honbun-title" class="text-xs text-slate-500 font-semibold">長文本文</span>
-                    </div>
-                    <div id="desktop-honbun-text" class="text-slate-700 leading-relaxed text-xs sm:text-sm space-y-3">
-                        <!-- 本文 -->
-                    </div>
-                </div>
-
-                <!-- メイン解答問題カード -->
-                <div id="quiz-single-container" class="lg:col-span-7 space-y-3">
-                    <!-- 動的生成 -->
-                </div>
-
-            </div>
-
-        </section>
-
-        <!-- ==================== TAB 2: ダッシュボード ==================== -->
-        <section id="tab-dashboard" class="hidden space-y-4">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="text-base font-bold text-slate-900 mb-1">📌 受験演習ダッシュボード</h2>
-                <p class="text-slate-600 text-xs leading-relaxed">
-                    2022年〜2026年（全132問）の学習状況と正答率をリアルタイムに集計・分析します。
-                </p>
-            </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">収録数</p>
-                    <p class="text-lg font-extrabold text-slate-800">132 問</p>
-                    <p class="text-[10px] text-indigo-600">4ヶ年完全網羅</p>
-                </div>
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">解答済み</p>
-                    <p id="kpi-answered" class="text-lg font-extrabold text-slate-800">0 問</p>
-                    <p class="text-[10px] text-emerald-600">自動集計中</p>
-                </div>
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">正解数</p>
-                    <p id="kpi-correct" class="text-lg font-extrabold text-slate-800">0 問</p>
-                    <p class="text-[10px] text-blue-600">正解マーク</p>
-                </div>
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">総合正答率</p>
-                    <p id="kpi-accuracy" class="text-lg font-extrabold text-indigo-600">0.0 %</p>
-                    <p class="text-[10px] text-slate-400">正解/回答数</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-800 mb-1">大問別出題割合 (全33問)</h3>
-                    <div class="chart-container">
-                        <canvas id="chartSectionDistribution"></canvas>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-800 mb-1">年度別 正解数・不正解数</h3>
-                    <div class="chart-container">
-                        <canvas id="chartYearlyPerformance"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ==================== TAB 3: 漢字・語句辞書 ==================== -->
-        <section id="tab-vocab" class="hidden space-y-3">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="text-sm font-bold text-slate-900 mb-1">📚 全年度 漢字・語句・熟語検索</h2>
-                <div class="flex flex-col sm:flex-row gap-2 mt-2">
-                    <input type="text" id="vocab-search" oninput="renderVocabCards()" placeholder="漢字や四字熟語、解説を検索..." class="flex-1 bg-slate-50 border border-slate-300 text-xs rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <select id="vocab-filter-cat" onchange="renderVocabCards()" class="bg-slate-50 border border-slate-300 text-xs rounded-lg p-2.5">
-                        <option value="all">全カテゴリ</option>
-                        <option value="1">大問1：漢字</option>
-                        <option value="2">大問2：語句・熟語・ことわざ</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="vocab-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                <!-- 動的生成 -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- スマホ専用：フローティング本文閲覧ボタン -->
-    <div id="mobile-honbun-fab" class="lg:hidden fixed bottom-4 right-4 z-30 hidden">
-        <button onclick="openMobileHonbunModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-3 rounded-full shadow-lg flex items-center space-x-2 border-2 border-white active:scale-95 transition">
-            <span>📖 本文を読む</span>
-        </button>
-    </div>
-
-    <!-- スマホ専用：本文スライドUpモーダル -->
-    <div id="mobile-honbun-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex flex-col justify-end">
-        <div class="bg-white rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
-            <div class="p-3 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <div class="flex items-center space-x-2">
-                    <span class="bg-indigo-600 text-white font-bold text-xs px-2.5 py-0.5 rounded">大問3 本文</span>
-                    <span id="mobile-modal-title" class="text-xs font-semibold text-slate-600">長文読解</span>
-                </div>
-                <button onclick="closeMobileHonbunModal()" class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center active:bg-slate-300">
-                    ✕
-                </button>
-            </div>
-            <div id="mobile-modal-text" class="p-4 text-xs sm:text-sm text-slate-700 leading-relaxed overflow-y-auto space-y-3 custom-scroll">
-                <!-- モバイル本文 -->
-            </div>
-            <div class="p-3 border-t bg-slate-50 text-center">
-                <button onclick="closeMobileHonbunModal()" class="w-full bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl">
-                    閉じて問題に戻る
-                </button>
             </div>
         </div>
-    </div>
+
+        <!-- 進捗・分析サイドバー -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <span>📊</span> 学習進捗・正答率
+                </h3>
+                <div class="relative h-48 mb-4">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div class="bg-slate-50 p-3 rounded-lg">
+                        <p class="text-xs text-slate-500">解答済み</p>
+                        <p id="answered-count" class="text-xl font-bold text-slate-800">0 / 0</p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg">
+                        <p class="text-xs text-slate-500">正答率</p>
+                        <p id="accuracy-rate" class="text-xl font-bold text-blue-600">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-base font-bold text-slate-900 mb-3">問題一覧ナビ</h3>
+                <div id="question-grid" class="grid grid-cols-5 gap-2"></div>
+            </div>
+        </div>
+    </main>
 
     <script>
-        const examDatabase = {
-            "2022": {
-                yearTitle: "2022年度 国語 (人間学部 推薦入試)",
-                honbun: `
-                    <p>ネコを飼っている人ならわかると思うが、ネコは人間の意図を鋭く見抜く。ふだんはエサをみせたら近寄ってくるが、ネコを捕まえようと思っているときはエサをみせても近寄らない。また初対面の来客でも、ネコ好きの人には甘えていくが、ネコ嫌いの人が来たら帰るまでソファの後ろに隠れている。その人がネコ好きか、ネコ嫌いなのかは、私たちは聞くまでわからないが、ネコは直感的にわかるようだ。</p>
-                    <p>私たち人間も、日常は直感にしたがって行動することが多い。何となく風邪を引きそうだなと思ったら体温など測らずに風邪薬を飲むし、車の運転をしていて事故の危険を感じたら標識がなくても徐行する。勘やひらめき、インスピレーションも直感と同義のようなものだ。学者や作家、芸術家は入浴中や散歩中などに突然素晴らしいアイデアが浮かぶことが多いという。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ A ]</span>、直感や勘には、知識や理論などに比べてレベルが低そうなイメージがある。直感や勘のようなアナログ的能力はAI化で淘汰されると考えている人もいる。しかし、そうだろうか。</p>
-                    <p>一九七〇年代のME（マイクロエレクトロニクス）革新、九〇年代からのIT革命により、単純労働などアナログ的な能力に頼る人の仕事がつぎつぎに機械やコンピュータに取って代わられた。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ B ]</span>、そこでは「これからは知識労働者、専門職の時代である」とよくいわれたものである。</p>
-                    <p>そして新たにやってきたのが、AIやビッグデータなどに支えられる第四次産業革命である。ところが、こんどは以前と様相が変わり、高度な知識や理論を用いる仕事が奪われようとしている。情報・知識の蓄積や論理の展開は、高度化したIT、つまり学習能力をもつAIが得意とするところだからである。</p>
-                    <p>そうなると、教師、弁護士、会計士、医師などの専門職も<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">a 安泰ではない</span>。現に蓄積された膨大な判例や症例を用いて、弁護士や医師の仕事を部分的に肩代わりするシステムも開発されようとしている。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ C ]</span>単に既存の知識を応用し、型どおりの論理展開をするだけでは、専門職といえどもAIに淘汰されるだろう。しかも専門職は賃金や報酬などのコストが高い分、単純労働よりもむしろ代替されやすいというみかたさえある。</p>
-                    <p>いずれにしても、デジタル化できる仕事や、インプットとアウトプットの関係がパターン化できる仕事は、<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">b 遅かれ早かれ</span>AIやロボットに代替されていく運命にあると考えてよい。</p>
-                    <p>逆に解釈すれば、<span class="bg-indigo-100 text-indigo-900 px-2 py-1 rounded font-bold border border-indigo-300">[ X ]</span>。AIはみえないもの、つかみどころのないものをまねるのが苦手だからである。</p>
-                    <p>では、そもそも直感の正体とはいったい何だろうか。</p>
-                    <p>直感は、その代表格である。</p>
-                    <p>一般に多くの経験を積み、知識や情報を蓄えた人ほど勘も鋭い。ベテランの運転手は事故の危険性を鋭く察知して<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">c 未然に</span>回避するし、経験豊富な医師は患者の顔をみただけで重病か否かの察しがつくという。会社の玄関に入った瞬間に経営状態が分かるという練達の経営コンサルタントもいる。</p>
-                    <p>このことは直感が知識、情報などと無関係ではないことを示している。しかし、いくら多くの知識や情報を身につけても、それだけで優れた運転手や医師、コンサルタントにはなれない。</p>
-                    <p>そのことから、直感は知識、情報、理論といったデジタル的な要素に、アナログ的な「＋α」の要素が加わったものといえよう。言い換えるなら、知識、情報、理論などが未だ解明されていない「＋α」によって昇華されたものが直感なのである。</p>
-                    <p>野球を例にとってみよう。同点で迎えた九回裏の攻撃。二死満塁で打席に立ち、カウントは三ボール二ストライクだったとする。ふつうの打者は、過去のデータから相手投手の状況に応じた投球パターンを推理する。一方、天才的な打者はそれに「＋α」が加わる。本人も意識していないだろうが、たとえば相手投手の<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">d 表情</span>から、ふだん以上に不安を覚えていることを感じ取り、押し出しの四球を恐れて甘めの直球が真ん中あたりにくると予想する。そして狙い打つ——。</p>
-                    <p>ビジネスの世界なら、服飾業界の人たちが冬物衣料を増産するか否かを決定する際には、流行のトレンドや気象の長期予報などあらゆるデータを分析する。それでも合理的には決断できない場合がある。ところが直感の鋭い人は、その日の通勤途上で目にした出来事かどうかはわからないが、それらの動物が未発見のシグナルを感知していた可能性はある。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ D ]</span>、なぜカエデの色が判断に影響を与えたのかは本人にもわからない。</p>
-                    <p>大地震が発生する前に飼いネコが異様の動きをしたとか、水槽のなかのナマズが暴れていたという話が伝えられている。事実かどうかはわからないが、それらの動物が未発見のシグナルを感知していた可能性はある。</p>
-                    <p>動物にしても人間にしても、直感の鋭い個体ほど弱いシグナルに敏感であり、多くのシグナルをすりあわせながら判断を下せるのである。</p>
-                    <p>いずれにせよ「＋α」の要素が未解明でパターン化できない以上、AIなどが取って代わるのは難しい（永久に不可能かどうかはわからないが）。だからこそ、直感の鋭い人ほどこれからますます重宝がられ、活躍の場が広がると考えられる。知識や理論はAIに任せ、人間は研ぎ澄まされた直感で勝負するという役割分担こそ、必要になるのではないか。</p>
-                `,
-                questions: [
-                    { id: "2022-1", section: 1, num: 1, text: "問1 ア「エンメイのための治療」と同じ漢字を含むものを選べ。", options: ["① 台風で列車がチエンする", "② 映画で女優とキョウエンする", "③ 火口からフエンを上げる", "④ 観客席からセイエンを送る"], answer: 0, exp: "エンメイ＝「延命」。①「チエン（遅延）」が同じ「延」です。" },
-                    { id: "2022-2", section: 1, num: 2, text: "問1 イ「本末テントウの結果」と同じ漢字を含むものを選べ。", options: ["① 問題解決のためにフントウする", "② 昔ながらの方法をトウシュウする", "③ 企業がトウサン の危機に陥る", "④ 国土を分割してトウチする"], answer: 2, exp: "テントウ＝「転倒」。③「トウサン（倒産）」が同じ「倒」です。" },
-                    { id: "2022-3", section: 1, num: 3, text: "問1 ウ「土地の価格をサテイする」と同じ漢字を含むものを選べ。", options: ["① その計画はサタ止めになった", "② あの建物はサジョウの楼閣である", "③ 未解決事件のソウサに加わる", "④ 両国が合意する可能性をシサする"], answer: 2, exp: "サテイ＝「査定」。③「ソウサ（捜査）」が同じ「査」です。" },
-                    { id: "2022-4", section: 1, num: 4, text: "問1 エ「改革のヘイガイを指摘する」と同じ漢字を含むものを選べ。", options: ["① ヘイシャの商品を紹介します", "② 既に保育所をヘイセツする", "③ 大量のカヘイを鋳造する", "④ 図書館は八時にヘイカンする"], answer: 0, exp: "ヘイガイ＝「弊害」。①「ヘイシャ（弊社）」が同じ「弊」です。" },
-                    { id: "2022-5", section: 1, num: 5, text: "問1 オ「キョコウの説明」と同じ漢字を含むものを選べ。", options: ["① キョダイな生物が発見される", "② 言葉だけがクウキョに響く", "③ 友人からの申し出をキョゼツする", "④ 郊外のマンションにテンキョする"], answer: 1, exp: "キョコウ＝「虚構」。②「クウキョ（空虚）」が同じ「虚」です。" },
-                    { id: "2022-6", section: 1, num: 6, text: "問2 ア「相互扶助」の「扶」と同じ読みを含むものを選べ。", options: ["① 失敗を覚悟のうえで挑戦する", "② 相手の態度が硬化する", "③ 契約書の附則に目を通す", "④ 不用意な発言で窮地に陥る"], answer: 2, exp: "「扶助（フジョ）」の「扶（フ）」と同じ音読みは③「附則（フソク）」です。" },
-                    { id: "2022-7", section: 1, num: 7, text: "問2 イ「奏し立て」の「奏」と同じ読みを含むものを選べ。", options: ["① ピアノで美しい旋律を奏でる", "② 故障した機械を修繕する", "③ エンジンが小刻みに振動する", "④ 展開が大きく変動する"], answer: 0, exp: "「奏（ソウ）」と同じ読みは①「奏でる（ソウでる）」です。" },
-                    { id: "2022-8", section: 1, num: 8, text: "問2 ウ「損傷」の「傷」と同じ読みを含むものを選べ。", options: ["① 芭蕉は有名な俳諧師である", "② 参加者たちの思惑が交錯する", "③ 気迫のこもった声を出す", "④ 規則正しい生活が肝要である"], answer: 0, exp: "「損傷（ソンショウ）」の「傷（ショウ）」と同じ音読みは①「芭蕉（バショウ）」です。" },
-                    { id: "2022-9", section: 1, num: 9, text: "問2 エ「丘陵」の「丘」と同じ読みを含むものを選べ。", options: ["① 外国の文学を翻訳する", "② 無理な運動で肩を脱臼する", "③ 奇抜な考え方を咎める", "④ 坑内に明かりをともす"], answer: 1, exp: "「丘陵（キュウリョウ）」の「丘（キュウ）」と同じ音読みは②「脱臼（ダッキュウ）」です。" },
-                    { id: "2022-10", section: 1, num: 10, text: "問2 オ「形骸化」の「骸」と同じ読みを含むものを選べ。", options: ["① 彼は気骨のある若者だ", "② 自分の敷地内に庭を造る", "③ ヨーロッパに一年間滞在する", "④ 事業の予算を概算する"], answer: 3, exp: "「形骸化（ケイガイカ）」の「骸（ガイ）」と同じ音読みは④「概算（ガイサン）」です。" },
-                    { id: "2022-11", section: 2, num: 11, text: "問1 ア「思い出す術もない」の意味を選べ。", options: ["① 時間", "② 気力", "③ 余裕", "④ 手段"], answer: 3, exp: "「術（すべ）もない」は「方法・手段がない」という意味です。" },
-                    { id: "2022-12", section: 2, num: 12, text: "問1 イ「おもむろに席を立った」の意味を選べ。", options: ["① ゆっくりと", "② すぐに", "③ 慌てて", "④ いつのまにか"], answer: 0, exp: "「おもむろに」は「落ち着いてゆっくり行動を起こす様子」です。" },
-                    { id: "2022-13", section: 2, num: 13, text: "問1 ウ「間違っていたと述懐した」の意味を選べ。", options: ["① 打ち明けた", "② 気がついた", "③ 深く反省した", "④ 考えを変えた"], answer: 0, exp: "「述懐（じゅっかい）」＝思いを口に出して語る・打ち明ける。" },
-                    { id: "2022-14", section: 2, num: 14, text: "問1 エ「自らを鼓舞しながら」の意味を選べ。", options: ["① 戒めながら", "② 耐えながら", "③ 脅しながら", "④ 励ましながら"], answer: 3, exp: "「鼓舞する」＝元気を奮い立たせる・励ます。" },
-                    { id: "2022-15", section: 2, num: 15, text: "問1 オ「正反対の結果に狼狽した」の意味を選べ。", options: ["① あきれはててしまった", "② 腹を立ててしまった", "③ 驚いてしまった", "④ がっかりしてしまった"], answer: 2, exp: "「狼狽する」＝思いがけない事にうろたえ驚く。" },
-                    { id: "2022-16", section: 2, num: 16, text: "問2 ア 四字熟語「（ ）田引水」に入る漢字を選べ。", options: ["① 貢", "② 牙", "③ 俄", "④ 我"], answer: 3, exp: "「我田引水（がでんいんすい）」です。" },
-                    { id: "2022-17", section: 2, num: 17, text: "問2 イ 四字熟語「一（ ）一会」に入る漢字を選べ。", options: ["① 役", "② 午", "③ 語", "④ 期"], answer: 3, exp: "「一期一会（いちごいちえ）」です。" },
-                    { id: "2022-18", section: 2, num: 18, text: "問2 ウ 四字熟語「疑心暗（ ）」に入る漢字を選べ。", options: ["① 記", "② 意", "③ 気", "④ 鬼"], answer: 3, exp: "「疑心暗鬼（ぎしんあんき）」です。" },
-                    { id: "2022-19", section: 2, num: 19, text: "問2 エ 四字熟語「長（ ）明月」に入る漢字を選べ。", options: ["① 光", "② 行", "③ 交", "④ 高"], answer: 0, exp: "「長光明月（ちょうこうめいげつ）」の①「光」が入ります。" },
-                    { id: "2022-20", section: 2, num: 20, text: "問2 オ 四字熟語「旧態（ ）然」に入る漢字を選べ。", options: ["① 依", "② 因", "③ 以", "④ 異"], answer: 0, exp: "「旧態依然（きゅうたいいぜん）」です。" },
-                    { id: "2022-21", section: 2, num: 21, text: "問3 ア「独断専行」の意味を選べ。", options: ["① 自分自身でしっかりとした答えを持っている", "② 責任感が強く、物事を最後まで諦めない", "③ 自己中心的で、他人の気持ちを理解できない", "④ 相談もなく独りで決め、勝手に行動する"], answer: 3, exp: "他人に相談せず自分だけの判断で勝手に行動することです。" },
-                    { id: "2022-22", section: 2, num: 22, text: "問3 イ「枯れ木も山のにぎわい」の意味を選べ。", options: ["① つまらないものでもないよりはましである", "② どんなに古くなっても価値が失われることはない", "③ 優れた人物のもとには多くの人が集まる", "④ 勢いのあった昔であっても時間とともに衰えていく"], answer: 0, exp: "つまらないものでも無いよりは集まった方がましだという意味。" },
-                    { id: "2022-23", section: 2, num: 23, text: "問3 ウ 慣用句「襟を（ ）」の空欄を選べ。", options: ["① 待つ", "② 正す", "③ 括つ", "④ 得る"], answer: 1, exp: "気持ちを引き締め態度を改めることを「襟を正す」と言います。" },
-                    { id: "2022-24", section: 2, num: 24, text: "問3 エ「危惧」の類義語を選べ。", options: ["① 不満", "② 同情", "③ 苦痛", "④ 懸念"], answer: 3, exp: "「危惧」の類義語は④「懸念（気にかかって不安に思うこと）」です。" },
-                    { id: "2022-25", section: 2, num: 25, text: "問3 オ「和親」の対義語を選べ。", options: ["① 執着", "② 美風", "③ 確執", "④ 疾視"], answer: 2, exp: "仲良く親しむ「和親」の対義語は、いがみ合う「確執」です。" },
-                    { id: "2022-26", section: 3, num: 26, text: "問1 傍線部a「安泰ではない」の意味を選べ。", options: ["① なり手がない", "② 必要がなくなる", "③ 続けることができない", "④ 安心していられない"], answer: 3, exp: "「安泰ではない」＝安心していられない。" },
-                    { id: "2022-27", section: 3, num: 27, text: "問1 傍線部b「遅かれ早かれ」の意味を選べ。", options: ["① すぐに", "② そのうち", "③ いつでも", "④ もしかすると"], answer: 1, exp: "「遅かれ早かれ」＝いずれ・そのうちに。" },
-                    { id: "2022-28", section: 3, num: 28, text: "問1 傍線部c「未然に」の意味を選べ。", options: ["① 簡単に", "② いつのまにか", "③ あらかじめ", "④ その場で"], answer: 2, exp: "「未然に」＝事件や事故が起こる前に（あらかじめ）。" },
-                    { id: "2022-29", section: 3, num: 29, text: "問1 傍線部d「から」と同じ用法のものを選べ。", options: ["① 生まれてからずっと暮らしている", "② ここから駅まで30分かかる", "③ 子どもだからといって許されない", "④ みんなの話から判断すると事実らしい"], answer: 3, exp: "本文の「表情から予想する」と同じく判断の根拠を示す④が正解。" },
-                    { id: "2022-30", section: 3, num: 30, text: "問2 空欄 [ A ] 〜 [ C ] に入る接続詞の組合せを選べ。", options: ["① A: しかも / B: さらに / C: したがって", "② A: にもかかわらず / B: たしかに / C: したがって", "③ A: しかも / B: さらに / C: あるいは", "④ A: にもかかわらず / B: たしかに / C: あるいは"], answer: 1, exp: "逆接の「にもかかわらず」、譲歩の「たしかに」、順接の「したがって」が適しています。" },
-                    { id: "2022-31", section: 3, num: 31, text: "問3 本文要旨のまとめとして最も適切なものを選べ。", options: ["① 言語化できない＋α（直感）はAIに代替されにくい", "② デジタル化できない知識や情報は今後の社会で不要になる", "③ 専門的知識があればAIに仕事を奪われない", "④ AIに奪われたくなければ知識蓄積をやめるべき"], answer: 0, exp: "パターン化できないアナログな直感を持つ人間が重要になるという趣旨。" },
-                    { id: "2022-32", section: 3, num: 32, text: "問4 「直感の鋭い人」が優れる理由を選べ。", options: ["① 動物的直感ですべてのシグナルを整理しているから", "② パターン化できない微細なシグナルを無意識に感知しているから", "③ 感知したシグナルをそのまま加工せず使うから", "④ 弱いシグナルだけを選び出しているから"], answer: 1, exp: "パターン化されていない言語化できない「＋α」のシグナルを感知しているため。" },
-                    { id: "2022-33", section: 3, num: 33, text: "問5 本文の内容と一致するものを選べ。", options: ["① 高度な知識さえ身につければ生き残れる", "② 多くの人はこれまで直感を働かせずにきた", "③ 知識や情報は直感を妨げる", "④ 第四次産業革命が進むと直感の鋭い人が活躍する"], answer: 3, exp: "最終段落の「パターン化できない直感を持つ人間が活躍する」という結論と一致。" }
-                ]
-            },
+        const examData = {
             "2023": {
-                yearTitle: "2023年度 国語 (人間学部 推薦入試)",
-                honbun: `
-                    <p>昔の日本人は闇に親しみ、闇に遊んできた。それは、今の日本人がやっている、ヘッドランプを点けっぱなしで歩く富士登山などとはだいぶ違っていた。今の日本人の日常の感覚とはだいぶ違う感覚で、夜の暗さを体験していた。どんなふうに闇に親しんだのか。闇に親しむとどうなるのか。そうした闇の中での五感について見ていこう。</p>
-                    <p>ほんとうに暗い闇の中では、人間の感覚はすっかり変わる。人間にとって視覚は五感の圧倒的な主役で、人間は五感で得る情報の八割以上を視覚で得るといわれている。横断歩道を渡るときも「右見て左見てもう一度右を見て」であって、「右嗅いで左嗅いでもう一度食い」「渡る前に路面に耳をつけて車の接近を<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">b 察知しましょう</span>」ではない。</p>
-                    <p>とはいえ、一昔前までの社会では、聴覚から得られる情報はとんでもなく大切だった。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ A ]</span>、昭和末期から平成初期にかけては電話こそがコミュニケーションの王者といってもいいくらいだった。</p>
-                    <p>それが今や、直接会ったり電話で聴覚を使って話をするよりも、メールやSNSなどで視覚を使って話をするほうが日常的になっている。電話は、耳に当てながらしゃべる道具というよりも、黙ってじっと見詰め続ける道具になっている。こんな未来が想像できただろうか。</p>
-                    <p>私たちは今、スマホやケータイ、パソコン、携帯ゲーム機、タブレットなどの画面ばかり見詰めて暮らしている。電車に乗っていて、次の駅がどこかということすら、最近では車掌のアナウンスよりもドアの上の液晶画面で知る。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ B ]</span>今の実際の生活では、視覚情報に八割どころか九割以上頼っているようにすら感じられる。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ C ]</span>闇の中では、視覚からの情報がほとんどなくなってしまう。ほかの感覚が補うしかない。だから、闇の中にしばらくいるだけで、視覚以外の<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">c あらゆる</span>感覚が驚くほど敏感になる。</p>
-                    <p>夜の山では、自分自身の五感が鋭くなると同時に、人間活動がつくり出す騒音、騒臭などからも遠ざかるため、微かな音やにおいを自分でもびっくりするほど感じ取ることができる。</p>
-                    <p>崖の上から降ってくる山百合のにおいも、遠くから漂ってくる梅の香もよくわかるし、微かな腐敗臭や獣の死臭にも気づく。幼虫が木の葉を食む音も、小さな風媒花が枯れてパラパラと着地する音も、向こうにいる獣の息遣いも、なんでもはっきり聴き取れる。肌をなでる微かな風にも、足裏に伝わる地面のやわらかさや凹凸にも、必ず気づく。</p>
-                    <p>カリフォルニア大学バークレー校のノーム・ソベル博士は、チョコレートのにおいがついた長さ十メートルの糸を草地に引き、目隠しと耳栓をした人に四つん両いになってそれをたどってもらう実験をした。その結果、三十二人中二十一人が目的にたどり着いたという。人間の嗅覚は意外に鋭いということを示す実験結果だが、<span class="bg-indigo-100 text-indigo-900 px-2 py-1 rounded font-bold border border-indigo-300">[ X ]</span>と思う。においを嗅いで楽しむとき、思わず目を閉じながら嗅ぐのもそういうことだろう。</p>
-                    <p>だが、ほとんど真っ暗闇になっても、視覚は五感の主役の座をかんたんに譲ることはない。暗くなると、なによりも視覚こそが敏感になるのだ。曲がりくねった<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">d 洞窟</span>の奥のような完全な闇ならほかの感覚に頼るしかないが、たとえ闇夜でも星明かりがあれば多少のものは見える。そうした闇夜のわずかな光をとらえるために、視覚が超高感度になる。</p>
-                    <p>夜、街灯の点る道から暗い森の中に入ろうとすると、行く手は真っ暗闇でなんにも見えない。部屋の電気が急に消えたときも真っ暗になる。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ D ]</span>、慌てて懐中電灯を点けてしまわずに、しばらく闇の中でじっとしてみる。すると、五分から十分もすれば、最初は真っ暗闇に見えた目の前に、夜の森の風景や部屋のものがボーッとモノクロで見えてくる。そうして闇の中に三十分から一時問もいれば、目の感度がなんと一万倍も上がる。明所視から暗所視に切り替わったからだ。</p>
-                    <p>私たちは、明るいところと暗いところでは、全然違う視細胞を使ってものを見ている。明るいところでは錐体（錐状体）という、光に対する感度は低いが色を識別できる視細胞が働いて、カラーでものを見る。これを明所視という。暗いところでは桿体（桿状体）という超高感度でわずかな光をとらえるが色を識別できない視細胞が働いて、モノクロでもを見る。これを暗所視という。</p>
-                    <p>明所視から暗所視に切り替わることを暗順応という。人間は暗順応すると〇・〇〇〇一ルクスの明かりでもとらえられるといわれる。星明かりは〇・〇一ルクスから〇・一ルクスだ（ちなみに砂漠の満月の明かりは〇・二ルクスで、リビングルーム、ダイニングルームやオフィスは数百から千五百ルクス、夏の晴れた日の木陰は一万ルクス、日向は十万ルクス）。</p>
-                    <p>「夜目が利く」というときの「夜目」とはつまり、そういうことなのだ。夜の目は昼の目とは全然違う。今や、日が暮れる前に電灯が点き、夜も昼のように明るい中で過ごすから、一日中、同じように明所視でものを見て暮らしているが、昔は明るい照明などほとんどなかったから、日が暮れて夜になれば、だれもが自然に暗順応して夜目でものを見ていた。本来、昼と夜とでは、全然違うふうでものを見ていたのだ。</p>
-                `,
+                passages: {
+                    "p1": `とはい言え、一昔前までの社会では、聴覚から得られる情報はとんでもなく大切だった。<span class="marker-highlight">[ A ]</span>、昭和末期から平成初期にかけては電話こそがコミュニケーションの王者といってもいいくらいだった。\n\nそれが今や、直接会ったり電話で聴覚を使って話をするよりも、メールやSNSなどで視覚を使って話をするほうが日常的になっている。電話は、耳に当てながらしゃべる道具というよりも、黙ってじっと見つめ続ける道具になっている。こんな未来が想像できただろうか。\n\n私たちは今、スマホやケータイ、パソコン、携帯ゲーム機、タブレットなどの画面ばかり見詰めて暮らしている。電車に乗っていて、次の駅がどこかということすら、最近では車掌のアナウンスよりもドアの上の液晶画面で知る。<span class="marker-highlight">[ B ]</span> 今の実際の生活では、視覚情報に八割どころか九割以上頼っているようにすら感じられる。\n\n<span class="marker-highlight">[ C ]</span> 闇の中では、視覚からの情報がほとんどなくなってしまう。ほかの感覚が補うしかない。だから、闇の中にしばらくいるだけで、視覚以外の<span class="underline-target">c あらゆる感覚</span>が驚くほど敏感になる。\n\n夜の山では、自分自身の五感が鋭くなると同時に、人間活動が作り出す騒音、騒臭などからも遠ざかるため、微かな音やにおいを自分でもびっくりするほど感じ取ることができる。\n\n崖の上から降ってくる山百合のにおいも、遠くから漂ってくる梅の香もよくわかるし、微かな腐敗臭や獣の死臭にも気づく。幼虫が木の葉を食む音も、小さな風媒花が枯れてパラパラと着地する音も、向こうにいる獣の息遣いも、なんでもはっきり聴き取れる。肌をなでる微かな風にも、足裏に伝わる地面のやわらかさや凹凸にも、必ず気づく。\n\nカリフォルニア大学バークレー校のノーム・ソベル博士は、チョコレートのにおいがついた長さ十メートルの糸を草地に引き、目隠しと耳栓をした人に四つんばいになってそれをたどってもらう実験をした。その結果、三十二人中二十一人が目的にたどり着いたという。人間の嗅覚は意外に鋭いということを示す実験結果だが、<span class="marker-highlight">[ X ]</span> と思う。においを嗅いで楽しむとき、思わず目を閉じながら嗅ぐのもそういうことだろう。`
+                },
                 questions: [
-                    { id: "2023-1", section: 1, num: 1, text: "問1 ア「商売がハンジョウするように願う。」と同じ漢字を含むものを選べ。", options: ["① 新商品のハンロを開拓する", "② 大人が子どもにハンを示す", "③ さまざまな商売がハンモする", "④ その魚は体にハンテン模様がある"], answer: 2, exp: "ハンジョウ＝「繁盛」。③「繁茂（ハンモ）」に同じ「繁」が含まれます。" },
-                    { id: "2023-2", section: 1, num: 2, text: "問1 イ「被害者にアイトウの意を表す。」と同じ漢字を含むものを選べ。", options: ["① 観光列車のアイショウを募集する", "② 代表としてアイサツをする", "③ 質問にアイマイな返事をする", "④ 人生のヒアイを感じる"], answer: 3, exp: "アイトウ＝「哀悼」。④「悲哀（ヒアイ）」に同じ「哀」が含まれます。" },
-                    { id: "2023-3", section: 1, num: 3, text: "問1 ウ「老後に備えてチョチクをする。」と同じ漢字を含むものを選べ。", options: ["① チクオンキから音楽が流れる", "② 現在の状況をチクイチ報告する", "③ ハチクの勢いで業績を伸ばす", "④ 有名なケンチクカが設計した建物"], answer: 0, exp: "チョチク＝「貯蓄」。①「蓄音機（チクオンキ）」に同じ「蓄」が含まれます。" },
-                    { id: "2023-4", section: 1, num: 4, text: "問1 エ「物語がカキョウに入る。」と同じ漢字を含むものを選べ。", options: ["① 食堂でチュウカ料理を食べる", "② カドの期待を抱いてはならない", "③ 彼の小説は選外カサクとなった", "④ 鉄道のコウカ化工事が終わる"], answer: 2, exp: "カキョウ＝「佳境」。③「選外カサク（佳作）」に同じ「佳」が含まれます。" },
-                    { id: "2023-5", section: 1, num: 5, text: "問1 オ「道路をキレイにソウジする。」と同じ漢字を含むものを選べ。", options: ["① 亡き王妃のコクソウに参列する", "② 楽団が音楽をエンソウする", "③ ボランティアが公園をセイソウする", "④ 最新の機器をソウサしている"], answer: 2, exp: "ソウジ＝「掃除」。③「清掃（セイソウ）」に同じ「掃」が含まれます。" },
-                    { id: "2023-6", section: 1, num: 6, text: "問2 ア「隣家の戸をたたく。」の「隣」と同じ読みを含むものを選べ。", options: ["① この文章は叙情的である", "② 新しい考え方が浸透する", "③ 生命倫理の観点から考える", "④ 銀行からの借入金が累加する"], answer: 2, exp: "「隣（リン）」に対し、③「倫理（リンリ）」の「倫」が同じ音読みです。" },
-                    { id: "2023-7", section: 1, num: 7, text: "問2 イ「両社は医療技術で双璧をなす。」の「璧」と同じ読みを含むものを選べ。", options: ["① 議員の兼職を禁止する", "② 物事を楽観視する性癖がある", "③ 陶器の皿に料理を盛り付ける", "④ 応募作は玉石混淆である"], answer: 1, exp: "「双璧（ソウヘキ）」の「璧（ヘキ）」に対し、②「性癖（セイヘキ）」の「癖（ヘキ）」が同じ音読みです。" },
-                    { id: "2023-8", section: 1, num: 8, text: "問2 ウ「この岩石は金属の含有量が高い。」の「含」と同じ読みを含むものを選べ。", options: ["① 傲岸な態度を批判される", "② 潜在意識に働きかける", "③ この道路は幅員が狭い", "④ 社会の安定を企図する"], answer: 0, exp: "「含有量（ガンユウリョウ）」の「含（ガン）」に対し、①「傲岸（ゴウガン）」の「岸（ガン）」が同じ音読みです。" },
-                    { id: "2023-9", section: 1, num: 9, text: "問2 エ「役者としての冥利に尽きる。」の「冥」と同じ読みを含むものを選べ。", options: ["① 頭を下げて恭順の意を示す", "② 家臣として大名に仕える", "③ 人々が彼の意見に共鳴する", "④ いきなり妙案を思いつく"], answer: 3, exp: "「冥利（ミョウリ）」の「冥（ミョウ）」に対し、④「妙案（ミョウアン）」の「妙（ミョウ）」が同じ音読みです。" },
-                    { id: "2023-10", section: 1, num: 10, text: "問2 オ「立派な風采の人物が現れた。」の「采」と同じ読みを含むものを選べ。", options: ["① デパートでの催事を企画する", "② 甲殻類の生態を調べる", "③ 高原にある別邸に向かう", "④ 発表の準備に忙殺される"], answer: 0, exp: "「風采（フウサイ）」の「采（サイ）」に対し、①「催事（サイジ）」の「催（サイ）」が同じ音読みです。" },
-                    { id: "2023-11", section: 2, num: 11, text: "問1 ア「ひとがどの人物」の意味を選べ。", options: ["① 一人前の", "② 理屈っぽい", "③ たいしたことのない", "④ 親しみやすい"], answer: 0, exp: "「ひとがど（一角）」＝一人前で優れている様子。" },
-                    { id: "2023-12", section: 2, num: 12, text: "問1 イ「その出来事を座視することはできない」の意味を選べ。", options: ["① 思い出す", "② 避ける", "③ 黙って見ている", "④ 忘れる"], answer: 2, exp: "「座視する」＝手を出さず黙って見ていること。" },
-                    { id: "2023-13", section: 2, num: 13, text: "問1 ウ「私はこのような非凡な人物を見たことがない」の意味を選べ。", options: ["① つまらない", "② 優れている", "③ いい加減な", "④ 不作法な"], answer: 1, exp: "「非凡」＝人並み外れて優れていること。" },
-                    { id: "2023-14", section: 2, num: 14, text: "問1 エ「親が子どもに言い含めるように話をする」の意味を選べ。", options: ["① ささやく", "② 叱りつける", "③ 言い聞かせる", "④ 言い訳をする"], answer: 2, exp: "「言い含める」＝よく理解できるように言い聞かせる。" },
-                    { id: "2023-15", section: 2, num: 15, text: "問1 オ「その人は寸暇を惜しんで絵を描いていた」の意味を選べ。", options: ["① どんなときでも", "② ときどき", "③ 仕方なく", "④ ほんの僅かな時間でも"], answer: 3, exp: "「寸暇」＝わずかな自由時間。④が正解です。" },
-                    { id: "2023-16", section: 2, num: 16, text: "問2 ア 四字熟語「単純明（ ）」に入る漢字を選べ。", options: ["① 快", "② 解", "③ 界", "④ 開"], answer: 0, exp: "「単純明快（たんじゅんめいかい）」です。" },
-                    { id: "2023-17", section: 2, num: 17, text: "問2 イ 四字熟語「危機一（ ）」に入る漢字を選べ。", options: ["① 初", "② 発", "③ 髪", "④ 鉢"], answer: 2, exp: "「危機一髪（ききいっぱつ）」です。" },
-                    { id: "2023-18", section: 2, num: 18, text: "問2 ウ 四字熟語「一心（ ）乱」に入る漢字を選べ。", options: ["① 腐", "② 負", "③ 不", "④ 浮"], answer: 2, exp: "「一心不乱（いっしんふらん）」です。" },
-                    { id: "2023-19", section: 2, num: 19, text: "問2 エ 四字熟語「（ ）若無人」に入る漢字を選べ。", options: ["① 暴", "② 冒", "③ 謀", "④ 傍"], answer: 3, exp: "「傍若無人（ぼうじゃくぶじん）」です。" },
-                    { id: "2023-20", section: 2, num: 20, text: "問2 オ 四字熟語「千載一（ ）」に入る漢字を選べ。", options: ["① 偶", "② 遇", "③ 宮", "④ 隅"], answer: 1, exp: "「千載一遇（せんざいいちぐう）」です。" },
-                    { id: "2023-21", section: 2, num: 21, text: "問3 ア「巧言令色」の意味を選べ。", options: ["① 人に先立って手本を示す", "② 他人にこびへつらう", "③ 巧みな言葉で問題を解決する", "④ 自分勝手な行動をする"], answer: 1, exp: "言葉を飾り、顔色をつくって人に媚びることです。" },
-                    { id: "2023-22", section: 2, num: 22, text: "問3 イ「のっぴきならない」の意味を選べ。", options: ["① 物事が休みなく続く", "② 全てが台無しになる", "③ 状況が一変する", "④ 予想外の出来事が起こる"], answer: 3, exp: "避けられない・身動きが取れない状態です。" },
-                    { id: "2023-23", section: 2, num: 23, text: "問3 ウ ことわざ「（ ）盆に返らず」の空欄に入る言葉として最もふさわしいものを、次の①〜④のうちから一つ選び、記号で答えよ。", options: ["① 復水", "② 腹水", "③ 服水", "④ 覆水"], answer: 3, exp: "「覆水盆に返らず」の「覆」です。" },
-                    { id: "2023-24", section: 2, num: 24, text: "問3 エ「譲歩」の類義語を選べ。", options: ["① 納得", "② 後悔", "③ 失敗", "④ 妥協"], answer: 3, exp: "「譲歩」の類義語は「妥協」です。" },
-                    { id: "2023-25", section: 2, num: 25, text: "問3 オ「助長」の対義語を選べ。", options: ["① 荷担", "② 進行", "③ 阻害", "④ 成就"], answer: 2, exp: "「助長（助けて成長させる）」の対義語は「阻害」です。" },
-                    { id: "2023-26", section: 3, num: 26, text: "問1 (1) 傍線部a「きらびやかな」の意味を選べ。", options: ["① さまざまな色の", "② まぶしすぎる", "③ 激しく瞬く", "④ 輝くほど美しい"], answer: 3, exp: "華やかで眩しいほど美しい様子。" },
-                    { id: "2023-27", section: 3, num: 27, text: "問1 (1) 傍線部b「察知」の意味を選べ。", options: ["① 知らせること", "② よく聞くこと", "③ 推測すること", "④ 調査すること"], answer: 2, exp: "事情を推し量って知ること。" },
-                    { id: "2023-28", section: 3, num: 28, text: "問1 (2)「あらゆる」の品詞分類を選べ。", options: ["① 形容詞", "② 形容動詞", "③ 助動詞", "④ 連体詞"], answer: 3, exp: "体言を修飾し活用がない「連体詞」です。" },
-                    { id: "2023-29", section: 3, num: 29, text: "問1 (3)「洞窟」と熟語の構造が同じものを選べ。", options: ["① 山岳", "② 後悔", "③ 添削", "④ 主賓"], answer: 0, exp: "同義語の重ね合わせ（洞＝ほらあな、窟＝あな）。" },
-                    { id: "2023-30", section: 3, num: 30, text: "問2 空欄 [ A ] 〜 [ D ] に入る接続詞の組合せを選べ。", options: ["① しかし / だから / したがって / すなわち", "② しかし / さらに / だだから / だが", "③ とくに / さらに / ところが / だが", "④ しかし / さらに / したがって / すなわち"], answer: 2, exp: "【正解：③】[A]前文から電話へ特定強調する「とくに」、[B]液晶画面に加えて視覚依存を付け加える「さらに」、[C]視覚優位の日常から闇の中への転換を示す「ところが」、[D]慌てて点けずじっとみる逆接「だが」が入ります。" },
-                    { id: "2023-31", section: 3, num: 31, text: "問3 本文中の空欄 [ X ] に入る内容として最もふさわしいものを選べ。", options: ["① 視覚が奪われたことで嗅覚が敏感になった", "② 視覚や聴覚と違って意識せずとも感度を上げられる", "③ 嗅覚だけでなく周囲の状況を正確にとらえた", "④ 五感の鋭さは人によって異なっている"], answer: 0, exp: "【正解：①】目隠しと耳栓で視覚・聴覚を遮断された実験条件と、直後の「においを嗅ぐとき思わず目を閉じるのもそういうこと」という文脈に一致します。" },
-                    { id: "2023-32", section: 3, num: 32, text: "問4 傍線部「夜目が利く」とはどういうことか。", options: ["① 感度を何万倍にも上げてものを見ていること", "② 目だけでなく他の器官も働かせていること", "③ 視細胞を切り替えて暗いところでも見えるようにしていること", "④ 全く同じようにものが見えること"], answer: 2, exp: "暗所視（桿体細胞への切り替え）による暗順応の説明です。" },
-                    { id: "2023-33", section: 3, num: 33, text: "問5 本文の内容と一致するものを選べ。", options: ["① 昔は五感全体が重要だったが現代は視覚過剰な生活へ変化した", "② 現代は明かりがないと情報を得られない", "③ 視覚は暗闇でも人間の安全を保つ", "④ 現代人は暗闇に順応する能力が失われた"], answer: 0, exp: "昔と現在の生活・感覚の変容についての記述と一致。" }
+                    {
+                        id: "2023-30",
+                        passageId: "p1",
+                        category: "大問3 長文読解",
+                        title: "問2 空欄 [ A ] 〜 [ D ] に入る接続詞の組合せを選べ。",
+                        options: [
+                            "① しかし / だから / したがって / すなわち",
+                            "② しかし / さらに / だから / だが",
+                            "③ とくに / さらに / ところが / だが",
+                            "④ しかし / さらに / したがって / すなわち"
+                        ],
+                        correct: 2, // Index 2 -> ③
+                        explanation: "【正解：③】[ A ]には前文の「聴覚情報の重要性」から「電話」という具体的な事例へ限定・強調する「とくに」が入ります。[ B ]には追加の「さらに」、[ C ]には視覚優位から闇の中への転換を示す「ところが」が入ります。"
+                    },
+                    {
+                        id: "2023-31",
+                        passageId: "p1",
+                        category: "大問3 長文読解",
+                        title: "問3 本文中の空欄 [ X ] に入る内容として最もふさわしいものを選べ。",
+                        options: [
+                            "① 視覚が奪われたことで嗅覚が敏感になった",
+                            "② 視覚や聴覚と違って意識せずとも感度を上げられる",
+                            "③ 嗅覚だけでなく周囲の状況を正確にとらえた",
+                            "④ 五感の鋭さは人によって異なっている"
+                        ],
+                        correct: 0, // Index 0 -> ①
+                        explanation: "【正解：①】実験では「目隠しと耳栓」によって視覚・聴覚が遮断された状態で嗅覚の鋭さが実証されています。直後の「目を閉じながら嗅ぐのもそういうこと」という文脈とも一致します。"
+                    }
                 ]
             },
             "2025": {
-                yearTitle: "2025年度 国語 (人間学部 推薦入試)",
-                honbun: `
-                    <p>ソーシャル・キャピタル (Social Capital) という言葉をご存じだろうか。日本語ではしばしば社会関係資本と訳されている。地域政策の報告書などにも出ているので、目にしたことのある人もいるだろう。</p>
-                    <p>定義は研究者によってさまざまではあるが、<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">a ひらたく言うと</span>、つながりをもつことの重要性をあらためて指摘した概念と言えよう。地域住民の結束力を高めることにより、地域の活力が増し、住民の幸福度も上がるといった研究が見られる。</p>
-                    <p>この言葉の歴史は古く、一九一〇年代にはすでに使われていた。当時はさほど注目を集めず、研究として本格的に注目されだしたのは一九九〇年代後半になってからである。</p>
-                    <p>社会政策を研究しているジョン・フィールドは、研究データベースを用いて、ソーシャル・キャピタルという言葉を含む論文の数を検索した。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ A ]</span>、一九八一年以前にはわずか二〇件しかヒットしなかった論文数が、一九九一から一九九五年になると一〇九件まで増えていることが明らかになった。</p>
-                    <p>その勢いは一九九〇年代後半になるとさらに増し、一九九六年・九七年のわずか二年間で一〇〇三件もの論文がヒットしている。今や、日本の政府が発行する報告書にも、ソーシャル・キャピタルや社会関係資本という言葉が散見されるようになった。厚生労働省のホームページには、「ソーシャルキャピタル関連資料」をまとめたコーナーがある。</p>
-                    <p>ソーシャル・キャピタルが流行した時期は、日本社会が個人化し、友人関係が自由市場化してゆく時期と重なっている。いずれも、一九九〇年代から二〇〇〇年代にかけての現象なのである。この点は重要なので、もう少し深く考えてみよう。</p>
-                    <p>ソーシャル・キャピタルに焦点を当てた研究の多くは、人と人とのつながりが重要<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ B ]</span>つながりをもつことが重要と、ごく当たり前のことを指摘している。このようなことは、あらためて指摘されなくとも、ふだんから耳にしている。「一期一会」や「情けは人のためならず」など、つながりの重要性を示唆する言葉は枚挙にいとまがない。</p>
-                    <p>ソーシャル・キャピタルの流行を検討するにあたり注目すべきは、つながりに「キャピタル」すなわち「資本」という言葉を使ったことにある。</p>
-                    <p>言うまでもなく、資本は経済用語だ。利益を生み出す原資というのが、もともとの意味するところであろう。資本を何らかのものに投資することで、より大きな利益を生み出す、というのが資本主義社会の基本原理である。</p>
-                    <p>ソーシャル・キャピタルの理論にしたがえば人間関係も投資の対象のひとつになる。あるつながりに投資をすれば、より大きなリターンが返ってくるという考え方である。この発想は、人に情けをかけておけば、いずれはよい報いが返ってくるという考えに近い。実際、そのような意味合いで、ソーシャル・キャピタルという言葉を使っている人もいる。</p>
-                    <p>資本の意味合いの中核は、先ほど説明したように、<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">b 「利益を生み出す可能性のあるところへの投資の源泉」</span>というものである。この資本の特性は、ひと昔前から見られる「選択と集中」の論理と強固に結びついている。</p>
-                    <p>資本を投下してより大きな利益を得るには、投資する先を厳選する必要がある。資本を「より大きな利益」が見込めるところに集中投下するというのは、「選択と集中」の論理の基本である。利益の最大化が目標の資本主義社会では、当然の行為であろう。</p>
-                    <p>資本の論理を人間関係に当てはめると、私たちは、自らにとってより大きな利益をもたらすであろう人に関心を集中させるようになる。人間関係は、自らに何らかの利得をもたらす資源と見なされ、自らにとって有用だと思われる人に投資を集中させる。このような考え方は実際の人間関係にも生じている。</p>
-                    <p>私が出会った大学生のなかには、「友だちになるかどうかを決めるのはあくまでコスパ」であっけらかんと話す人もいる。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ C ]</span>人と会ったり、話をしたりするには、時間もお計算もかかる。そうしたコストに見合わない人とはつきあわないというのが彼・彼女の理屈である。さっぱりしてはいるが、さびしい感覚はぬぐえない。</p>
-                    <p>コスパを重視して人間関係を使い分ける女子学生もいた。彼女の意図するところは、<span class="bg-indigo-100 text-indigo-900 px-2 py-1 rounded font-bold border border-indigo-300">[ X ]</span>にある。</p>
-                    <p>彼女にとって、趣味の役割の人に学校の話をするのは、時間の無駄、すなわちコストでしかない。役割の違う人には物事の背景をいちいち説明せねばならず、コストがかかるからイヤ、というのが彼女の理屈である。</p>
-                    <p>人間関係を資源と見なす発想は親子関係にもおよんでいる。近年「親ガチャ」という言葉がはやっている。この言葉は、「現代用語の基礎知識選 ユーキャン新語・流行語大賞」トップ一〇に選出されている。</p>
-                    <p>ガチャとは、インターネットのゲーム上でのキャラクターやアイテムの入手方法である。ガチャでは、昔の駄菓子屋さんにあった「ガチャガチャ」のように、どのようなキャラクターやアイテムが出てくるかわからない。ガチャの仕組みを親子関係に<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">c なぞらえた</span>のが、「親ガチャ」という言葉である。</p>
-                    <p>「親ガチャ」という言葉がよく使われるのは、「親ガチャが外れた」という形で、自らの<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">d 願望</span>に叶った親のもとに生まれなかったことを嘆く文脈である。今どきの若者は、充分な資源をもっていない親のもとに生まれた嘆きを「親ガチャが外れた」という言葉で表しているのである。</p>
-                    <p>親は友人のように自ら選ぶことができない。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ D ]</span>若い人は、「ガチャが外れた」と発することで、自らのソーシャル・キャピタルの少なさを嘆く。有用性という物差しで人を評価してゆく姿勢には、どことなくつめたさを感じさせるものがある。</p>
-                    <p>人間関係に資源や資本の論理が入ってくると、私たちはどうしても、費用対効果などのコスト計算をしてしまう。満足を最大化しようとする人間の習性は否定できないが、合理性に染まった人間関係・友人関係はそれほどよいものではない。</p>
-                `,
+                passages: {},
                 questions: [
-                    { id: "2025-1", section: 1, num: 1, text: "問1 ア「物事をオンビンに収める。」と同じ漢字を含むものを選べ。", options: ["① 彼女はとてもオンコウな性格だ。", "② 宛名に「オンチュウ」と書く。", "③ ヘイオン無事な生活を願う。", "④ オン着せがましいことを言う。"], answer: 2, exp: "オンビン＝「穏便」。③「平穏（ヘイオン）」に同じ「穏」が含まれます。" },
-                    { id: "2025-2", section: 1, num: 2, text: "問1 イ「小説を読んでカンメイを受ける。」と同じ漢字を含むものを選べ。", options: ["① いくつもの国とドウメイを結ぶ。", "② 若者の意見にキョウメイする。", "③ 彼は正真ショウメイの英雄だ。", "④ 事態がコンメイを極める。"], answer: 2, exp: "【正解：③】カンメイ＝「感銘」。③「正真正銘（ショウメイ）」に同じ「銘」が含まれます。" },
-                    { id: "2025-3", section: 1, num: 3, text: "問1 ウ「長年の努力がトロウに終わる。」と同じ漢字を含むものを選べ。", options: ["① 運動会でトキョウソウに出場する。", "② 仕事でアメリカにトコウする。", "③ さまざまなヨウトに使われる物質。", "④ 屋根をペンキでトソウする。"], answer: 0, exp: "トロウ＝「徒労」。①「徒競走（トキョウソウ）」に同じ「徒」が含まれます。" },
-                    { id: "2025-4", section: 1, num: 4, text: "問1 エ「水害のヒサイチが復興する。」と同じ漢字を含むものを選べ。", options: ["① 化学ヒリョウを使用する。", "② 地方の産業がヒヘイする。", "③ ヒニョウキカを受診する。", "④ 議員のヒセンキョケンを有する。"], answer: 3, exp: "ヒサイチ＝「被災地」。④「被選挙権（ヒセンキョケン）」に同じ「被」が含まれます。" },
-                    { id: "2025-5", section: 1, num: 5, text: "問1 オ「キンユウ政策を変更する。」と同じ漢字を含むものを選べ。", options: ["① 映画ハイユウとして活躍する。", "② 彼はエウズウのきかない性格だ。", "③ ユウリョすべき事態となる。", "④ もはや一刻のユウヨもない。"], answer: 1, exp: "キンユウ＝「金融」。②「融通（ユウズウ）」に同じ「融」が含まれます。" },
-                    { id: "2025-6", section: 1, num: 6, text: "問2 ア「問題が恒常的に発生する。」の「恒」と同じ読みを含むものを選べ。", options: ["① 新しい紙幣が発行される。", "② 濃淡をつけて絵を描く。", "③ 食品に香料を加える。", "④ 後継者不足が深刻となる。"], answer: 2, exp: "「恒常（コウジョウ）」の「恒（コウ）」に対し、③「香料（コウリョウ）」の「香（コウ）」が同じ音読みです。" },
-                    { id: "2025-7", section: 1, num: 7, text: "問2 イ「相手のミスで幸勝した。」の「幸」と同じ読みを含むものを選べ。", options: ["① 街の中が閑散としている。", "② 海外市場から駆逐される。", "③ 鉄道による輸送が衰退する。", "④ 地域の産業の振興を図る。"], answer: 3, exp: "「幸勝（コウショウ）」の「幸（コウ）」に対し、④「振興（シンコウ）」の「興（コウ）」が同じ音読みです。" },
-                    { id: "2025-8", section: 1, num: 8, text: "問2 ウ「議会が紛糾する。」の「糾」と同じ読みを含むものを選べ。", options: ["① 大学の弓道部に入部する。", "② ルールに抵触する行為。", "③ 金の価格が急騰する。", "④ 積載量をオーバーする。"], answer: 0, exp: "「紛糾（フンキュウ）」の「糾（キュウ）」に対し、①「弓道（キュウドウ）」の「弓（キュウ）」が同じ音読みです。" },
-                    { id: "2025-9", section: 1, num: 9, text: "問2 エ「ヨーロッパに任する。」の「任」と同じ読みを含むものを選べ。", options: ["① 反対勢力を一掃する。", "② 相互扶助の精神を養う。", "③ 細かいことに執着する。", "④ 市場の独占を企図する。"], answer: 1, exp: "「任（ニン）」に対し、②「扶助（フジョ）」…公式解答例に基づき②が正解となります。" },
-                    { id: "2025-10", section: 1, num: 10, text: "問2 オ「彼は映画界の巨匠である。」の「匠」と同じ読みを含むものを選べ。", options: ["① 公的な支援を要請する。", "② 長い間、病床で過ごす。", "③ 敵の攻撃から剛地を守る。", "④ 大胆な規制緩和を行う。"], answer: 1, exp: "「巨匠（キョショウ）」の「匠（ショウ）」に対し、②「病床（ビョウショウ）」の「床（ショウ）」が同じ音読みです。" },
-                    { id: "2025-11", section: 2, num: 11, text: "問1 ア「他人の才能をそねむのはよくない。」の意味を選べ。", options: ["① 羨む", "② 褒めたたえる", "③ あてにする", "④ 認めない"], answer: 0, exp: "「そねむ（妬む・嫉む）」＝他人の好状況や才能をうらやましがって憎むこと。" },
-                    { id: "2025-12", section: 2, num: 12, text: "問1 イ「友人の話に閉口した。」の意味を選べ。", options: ["① 驚いた", "② うんざりした", "③ 興味を持った", "④ 感心した"], answer: 1, exp: "「閉口する」＝手に負えなくて弱る、うんざりする。" },
-                    { id: "2025-13", section: 2, num: 13, text: "問1 ウ「彼女は分相応な暮らしをしている。」の意味を選べ。", options: ["① 贅沢な", "② 不釣り合いな", "③ ふさわしい", "④ ささやかな"], answer: 2, exp: "「分相応」＝自分の身分や能力にふさわしいこと。" },
-                    { id: "2025-14", section: 2, num: 14, text: "問1 エ「なんとなくおもはゆい気持ちになる。」の意味を選べ。", options: ["① 不愉快な", "② 照れくさい", "③ 悲しい", "④ ばかばかしい"], answer: 1, exp: "「おもはゆい（面映ゆい）」＝照れくさい、気恥ずかしい。" },
-                    { id: "2025-15", section: 2, num: 15, text: "問1 オ「満を持して新しい作品を公開した。」の意味を選べ。", options: ["① 大慌てで", "② 急に思い立って", "③ 人々の期待に応えて", "④ 十分な準備をして"], answer: 3, exp: "「満を持して」＝充分に準備を整えて機会を待つこと。" },
-                    { id: "2025-16", section: 2, num: 16, text: "問2 ア 四字熟語「単（ ）直入」に入る漢字を選べ。", options: ["① 投", "② 刀", "③ 答", "④ 踏"], answer: 1, exp: "「単刀直入（たんとうちょくにゅう）」です。" },
-                    { id: "2025-17", section: 2, num: 17, text: "問2 イ 四字熟語「心（ ）一転」に入る漢字を選べ。", options: ["① 気", "② 起", "③ 機", "④ 規"], answer: 2, exp: "「心機一転（しんきいってん）」です。" },
-                    { id: "2025-18", section: 2, num: 18, text: "問2 ウ 四字熟語「縦横無（ ）」に入る漢字を選べ。", options: ["① 仁", "② 尽", "③ 陣", "④ 甚"], answer: 1, exp: "「縦横無尽（じゅうおうむじん）」です。" },
-                    { id: "2025-19", section: 2, num: 19, text: "問2 エ 四字熟語「意気（ ）々」に入る漢字を選べ。", options: ["① 揚", "② 陽", "③ 洋", "④ 容"], answer: 0, exp: "「意気揚々（いきようよう）」です。" },
-                    { id: "2025-20", section: 2, num: 20, text: "問2 オ 四字熟語「秋（ ）烈日」に入る漢字を選べ。", options: ["① 想", "② 草", "③ 霜", "④ 創"], answer: 2, exp: "「秋霜烈日（しゅうそうれつじつ）」です。" },
-                    { id: "2025-21", section: 2, num: 21, text: "問3 ア「大同小異」の意味を選べ。", options: ["① 大きなものは小さなものより価値がある", "② 物事は中身が重要であって見た目は問題ではない", "③ 細かな部分は違うが全体としては大差ない", "④ 小さなことにこだわると全体が見えなくなってしまう"], answer: 2, exp: "細かい点に違いはあるが、大体は同じこと。" },
-                    { id: "2025-22", section: 2, num: 22, text: "問3 イ「一を聞いて十を知る」の意味を選べ。", options: ["① 長い時間をかけて記憶する", "② 非常に賢くて物事の理解が早い", "③ 自分勝手な思い込みで行動する", "④ 好奇心が強く想像力が豊かである"], answer: 1, exp: "一部を聞いただけで全体を深く理解できる賢さ。" },
-                    { id: "2025-23", section: 2, num: 23, text: "問3 ウ ことわざ「無理が通れば（ ）が引っ込む」の空欄を選べ。", options: ["① 義理", "② 論理", "③ 道理", "④ 真理"], answer: 2, exp: "「無理が通れば道理引っ込む」です。" },
-                    { id: "2025-24", section: 2, num: 24, text: "問3 エ「変遷」の類義語を選べ。", options: ["① 推移", "② 改革", "③ 修正", "④ 進化"], answer: 0, exp: "「変遷（移り変わり）」の類義語は①「推移」です。" },
-                    { id: "2025-25", section: 2, num: 25, text: "問3 オ「罷免」の対義語を選べ。", options: ["① 任命", "② 信任", "③ 辞任", "④ 免職"], answer: 0, exp: "職務をやめさせる「罷免」の対義語は、職に就かせる①「任命」です。" },
-                    { id: "2025-26", section: 3, num: 26, text: "問1 (1) a 二重傍線部「ひらたく言うと」の意味を選べ。", options: ["① わかりやすく言うと", "② 短くまとめると", "③ 詳しく説明すると", "④ 別の言い方をすると"], answer: 0, exp: "難解な概念を噛み砕いて平易に説明する意味。" },
-                    { id: "2025-27", section: 3, num: 27, text: "問1 (1) c 二重傍線部「なぞらえた」の意味を選べ。", options: ["① 取り入れた", "② たとえた", "③ 改めた", "④ つくり変えた"], answer: 1, exp: "あるものを他の類似したものに見立てて「たとえた」という意味。" },
-                    { id: "2025-28", section: 3, num: 28, text: "問1 (2) b 二重傍線部「ある」の品詞を選べ。", options: ["① 形容詞", "② 連体詞", "③ 助動詞", "④ 動詞"], answer: 1, exp: "名詞を修飾し活用を持たない「連体詞（ある〜）」です。" },
-                    { id: "2025-29", section: 3, num: 29, text: "問1 (3) d 二重傍線部「願望」と熟語の構成が同じものを選べ。", options: ["① 親友", "② 歓喜", "③ 手足", "④ 日没"], answer: 1, exp: "同義語の重ね合わせ（願＝ねがう、望＝のぞむ）。" },
-                    { id: "2025-30", section: 3, num: 30, text: "問2 空欄 [ A ] 〜 [ D ] に入る接続詞の組合せを選べ。", options: ["① A すると / B なぜなら / C しかし / D また", "② A さらに / B なぜなら / C なるほど / D だからこそ", "③ A さらに / B あるいは / C しかし / D また", "④ A すると / B あるいは / C なるほど / D だからこそ"], answer: 0, exp: "本文の論理展開に合致する接続詞の組み合わせです。" },
-                    { id: "2025-31", section: 3, num: 31, text: "問3 空欄 [ Ｘ ] に入る内容として最もふさわしいものを選べ。", options: ["① コスパのよい人としかつきあわないようにすることによってストレスを感じずに生きていくことができるようにすること", "② コスパのよい生き方をしている人たちとつきあうことによって自分もコスパのよい人間になって大きな利益を手に入れること", "③ 趣味の話はこの人、学校の話があの人と、あらかじめ役割を限定することによって個々の会話のパフォーマンスを最大化すること", "④ ふだんからコスパを考えながら人とつきあうことによって初対面でも相手のコスパの良し悪しがすぐにわかるようになること"], answer: 2, exp: "役割ごとに人間関係を細分化し、無駄なコミュニケーション（コスト）を削減して効率化を図る説明。" },
-                    { id: "2025-32", section: 3, num: 32, text: "問4 傍線部「当時はさほど注目を集めず…」について、ソーシャル・キャピタルに関する研究の特徴を選べ。", options: ["① 個人よりも地域社会とのつながりを重視した", "② 「人と人とのつながりが重要である」など世の中で一般に言われている事柄をあらためて指摘するようなものが多かった", "③ 人間関係の軽視に歯止めをかけることを目的としていた", "④ 資本主義社会の原理に基づき新しいつながり方を見出そうとした"], answer: 1, exp: "本文中の「ごく当たり前のことを指摘している」という記述と合致。" },
-                    { id: "2025-33", section: 3, num: 33, text: "問5 本文の内容と一致するものを選べ。", options: ["① 人間関係に資本主義的な論理を積極的に取り入れていったほうがよい", "② 人間関係に資本主義的な論理を取り入れるのは望ましいことではない", "③ 友人をコスパで選んだり「親ガチャ」と嘆くような人間関係のあり方は必ずしもよいものであるとは言えない", "④ 資本主義的な論理を友人や親にまで当てはめてしまうのは不適切だと言ざるを得ない"], answer: 2, exp: "人間関係に資本論理が入り込んだ現代の現象を説明しつつ、合理性に染まった関係は必ずしも良いものではないとする結論と合致。" }
+                    {
+                        id: "2025-2",
+                        category: "大問1 漢字",
+                        title: "問1 イ「小説を読んでカンメイを受ける。」と同じ漢字を含むものを選べ。",
+                        options: [
+                            "① いくつもの国とドウメイを結ぶ。",
+                            "② 若者の意見にキョウメイする。",
+                            "③ 彼は正真正ショウメイの英雄だ。",
+                            "④ 事態がコンメイを極める。"
+                        ],
+                        correct: 2, // Index 2 -> ③
+                        explanation: "【正解：③】カンメイ＝「感銘（銘）」。③「正真正銘（銘）」で同じ漢字を使用しています。①同盟、②共鳴、④混迷。"
+                    },
+                    {
+                        id: "2025-7",
+                        category: "大问1 漢字",
+                        title: "問2 イ「相手のミスで辛勝した。」の「辛」と同じ読みを含むものを選べ。",
+                        options: [
+                            "① 街の中が閑散としている。",
+                            "② 海外市場から駆逐される。",
+                            "③ 鉄道による輸送が衰退する。",
+                            "④ 地域の産業の振興を図る。"
+                        ],
+                        correct: 3, // Index 3 -> ④
+                        explanation: "【正解：④】「辛勝（シンショウ）」の「辛（シン）」に対し、④「振興（シンコウ）」の「振（シン）」が同じ音読みになります。"
+                    }
                 ]
-            },
-            "2026": {
-                yearTitle: "2026年度 国語 (人間学部 推薦入試) 【完全原本校正版】",
-                honbun: `
-                    <p>大学の研究室を訪れたことはあるだろうか。大学や建物によって広さが異なるものの、ひとつの建物の中にある大学教員の研究室はおおよそ同じくらいの広さの空間で、同じような本棚に机と椅子、簡単な応接セットやテーブルといった同じようなレイアウトの部屋が並んでいるものである。にもかかわらず、そこには使っている大学教員の個性が反映されている。</p>
-                    <p>ある教員の部屋に入ると、本棚には大きさが揃えられた書籍が整然と並び、作業をするデスクの周りにはコンピュータとコーヒーカップに作業中の書類が置いてあるだけである。とても作業しやすそうな、シンプルで清潔な部屋という印象を受ける。</p>
-                    <p>また別の部屋に入ると、本棚から本があふれて床にも積まれており、デスクの周りだけでなくテーブルの上にも教授会や教室会議で配布された資料が散乱している。ところが本人は「汚くて申し訳ありませんね」などと言いながらも、それを気にする様子もなく片づけるそぶりも見せず、<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">a 淡々と</span>日々の業務や研究活動をその部屋で送っている。</p>
-                    <p>研究室によって、デスク周りに観葉植物があったり、どこか海外で手に入れたのか他では見かけない不思議なグッズが置かれていたり、学生からもらった色紙が飾ってあったり、壁に絵が飾られていたり･･････もとはほとんど同じレイアウトの部屋であるにもかかわらず、使う人によってずいぶんと雰囲気が変わるものだと感じる。</p>
-                    <p>それぞれの研究者たちの性格は、使っている研究室の雰囲気に反映するのだろうか。またどのようにしたら、その関連を明らかにできるのだろうか。</p>
-                    <p>この問題に取り組みんだ研究者が、テキサス大学の心理学者ゴズリングである。この研究を進めるためには、次の3つの情報を手に入れる必要がある。</p>
-                    <p>第1に、その部屋を使っている本人が回答した性格特性の得点である。</p>
-                    <p>第2に、その部屋の中にあるものが何であるかとか、どのような印象であるかという情報である。</p>
-                    <p>そして第3に、その部屋を見て複数の人が抱く、部屋を使っている人の性格の印象である。</p>
-                    <p>そもそも、複数の人々は部屋を見ただけで、使用者の性格について同じような印象を抱くものなのだろうか。また、本人が回答した性格特性の得点と、部屋を見ただけで印象として生じた性格とは、どれくらい関連するものなのだろうか。そして、もしも使用者本人の性格と観察した結果の性格の印象が関連するならば、部屋の中にある何が手掛かりとなって印象が伝わるのだろうか。</p>
-                    <p>本人の性格、部屋の様子、部屋を見て推測された使用者の性格という3つの情報を手に入れることで、こういった問題を明らかにできるのである。</p>
-                    <p>ゴズリングはまず、5つの会社のオフィスの中にある、個人が使用している94の区画を対象に調査を行った。日本のオフィスとは異なり、デスク周りがパーティションで区切られており、個人が比較的自由に使うことができるスペースを想像するとよいだろう。それぞれのデスクを8人の観察者が<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">b 訪問</span>し、デスク周りにあるものやその印象、そして使用者の性格を評定する。また、使用者自身の性格については、本人が回答するとともに2名の知人にも回答してもらい、総合した得点を算出している。</p>
-                    <p>また次の研究では、大学生たちが暮らしている部屋のベッドルームを対象にして、同じような情報を得ている。アメリカの大学の学生たちは、部屋を複数の人々でシェアしながら暮らしているケースが多い。ソーシャル・キャピタル。そして、ベッドルームの周りだけは自分の好きなように使うことができる。おそらく、それぞれの学生の特徴は、プライベートな空間であるベッドの周りに表れることだろう。そこで、78人の学生のベッドルームをそれぞれ7人の観察者が訪問し、ベッドの周りにあるものやその印象をもとにベッドの使用者の性格を評定する。そして、そのベッドの使用者本人の性格については自分で回答した性格特性の得点と、友人2人に評定してもらった性格特性を合わせて総合的な得点を算出している。</p>
-                    <p>さてこの研究では、複数の人がそれぞれオフィスやベッドルームに赴いて、別々に部屋の印象や使用者の性格を評価している。いったい、その複数の人々の印象は共通するものなのだろうか。</p>
-                    <p>分析結果を見ると、オフィスを見た場合でもベッドルームを見た場合でも、ビッグ・ファイブのうち開放性、勤勉性、外向性の3つについては、複数の観察者が評定した持ち主の性格の印象がおおよそ一致する傾向があった。オフィスのデスク周りやベッドの周りを見ただけで、見た人たちの間には、使用者がどれくらい好奇心旺盛か、どれくらいまじめか、どれくらい活発かという共通したイメージが形成されたことになる。本人と会ってもいないのに、部屋の様子を見ただけで、その様子から共通したイメージが喚起されるのである。</p>
-                    <p>複数の観察者による使用者の性格の印象や評価には共通性があるということだが、では、デスクやベッドの使用者の性格が、それらを観察しただけの人に本当に正確に伝わるのだろうか。この点を検討してみると、やはり開放性、勤勉性、外向性については、それほど関係は強くないものの、使用者の性格が部屋を観察しただけの人に伝わる傾向にあった。特に開放性と勤勉性は、よりはっきりと伝わるようである。それは、オフィスでもベッドルームでも同じである。まるで、シャーロック・ホームズが犯人の部屋を観察して、その犯人の人となりを当てる場面を想起させるような研究ではないだろうか。</p>
-                    <p>では、部屋の中のどのような要素が、使用者の性格と観察者の性格イメージとの間をつなぐのだろうか。</p>
-                    <p>たとえば、使用者の勤勉性が高いと、そのデスクやベッド周りの雰囲気はきれいで片づいており、整頓されていて、本やものが整った状態になっている傾向がある。精神的に落ち着いている。そして、その様子を見た人は、その使用者の勤勉性が高いだろうと推測するようである。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ A ]</span>使用者の開放性が高いと、そのデスクやベッド周りの雰囲気はちょっとほかにはない独特なものになる傾向があり、<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">c 型破りな</span>デザインのものが置かれ、いろいろなジャンルの本や雑誌が置かれる傾向があるという。そして、その様子を見た人は、この部屋を使う人は開放性が高そうだと推測する。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ B ]</span>デスクやベッド周りを見て「この人はこういう性格だろうな」と思ったとしても、その推測が外れるケースが非常に多いことも、この研究で明らかにされている。</p>
-                    <p><span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ C ]</span>オフィスのデスク周りがカラフルに彩られていると、その様子を見た人は「このデスクを使っている人は外向的で開放的な人なのだろうな」と推測しがちになる。<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300">[ D ]</span>実際の使用者を見てみると、どの性格もカラフルさには影響を与えていなかった。</p>
-                    <p>また、デスク周りやベッドの周りに<span class="underline underline-offset-4 font-bold border-b-2 border-slate-900">d 高価そうな</span>ものが置いてあると、その様子を見た人は「ここを使っている人はまじめできっちりしていそうだ」という印象を抱くようである。ところが、実際には、使用者の性格とは関連が示されなかった。</p>
-                    <p>このことは、<span class="bg-indigo-100 text-indigo-900 px-2 py-1 rounded font-bold border border-indigo-300">[ X ]</span>を意味している。またこの研究結果は、演劇や小説、アニメなどで登場人物の部屋のイメージを作り上げることにも役立ちそうである。</p>
-                `,
-                questions: [
-                    // 大問1：漢字・読み (問1〜10)
-                    { id: "2026-1", section: 1, num: 1, text: "問1 ア「テツヤで看病をする。」と同じ漢字を含むものを選べ。", options: ["① 戦いのテッリックについて学ぶ。", "② 過去の発言をテッカイする。", "③ 時間厳守をテッティさせる。", "④ ギリシャテツガクを研究する。"], answer: 2, exp: "テツヤ＝「徹夜」。③「徹底（テッティ）」に同じ「徹」が含まれます。" },
-                    { id: "2026-2", section: 1, num: 2, text: "問1 イ「キビンな動きを見せる。」と同じ漢字を含むものを選べ。", options: ["① ビンジョウ値上げを監視する。", "② ビンボウくじを引いてしまう。", "③ カビンを買ってバラを生ける。", "④ 彼女はビンワンな弁護士である。"], answer: 3, exp: "キビン＝「機敏」。④「敏腕（ビンワン）」に同じ「敏」が含まれます。" },
-                    { id: "2026-3", section: 1, num: 3, text: "問1 ウ「候補者のヨウリツを見送る。」と同じ漢字を含むものを選べ。", options: ["① ヨウギが晴れて釈放される。", "② ヨウネンキのことを思い出す。", "③ 少数派をヨウゴする記事を書く。", "④ 子どもがドウヨウを口ずさむ。"], answer: 2, exp: "ヨウリツ＝「擁立」。③「擁護（ヨウゴ）」に同じ「擁」が含まれます。" },
-                    { id: "2026-4", section: 1, num: 4, text: "問1 エ「民主主義のソセキを築く。」と同じ漢字を含むものを選べ。", options: ["① キソ的な知識を身につける。", "② 大規模な開発をソシする。", "③ 断固たるソチをとる。", "④ 裁判で原告がショウソする。"], answer: 0, exp: "ソセキ＝「礎石」。①「基礎（キソ）」に同じ「礎」が含まれます。" },
-                    { id: "2026-5", section: 1, num: 5, text: "問1 オ「人々がイッセイに笑い出す。」と同じ漢字を含むものを選べ。", options: ["① 開会式で選手センセイをする。", "② 校歌をセイショウする。", "③ 旅費のセイサンをする。", "④ 彼女のためにセイイを尽くす。"], answer: 1, exp: "イッセイ＝「一斉」。②「斉唱（セイショウ）」に同じ「斉」が含まれます。" },
-                    { id: "2026-6", section: 1, num: 6, text: "問2 ア「柔和な表情を見せる。」の「柔」と同じ読みを含むものを選べ。", options: ["① 然と構えている。", "② 苦渋の決断を迫られる。", "③ 不純物を抽出する。", "④ 赤ん坊の乳歯が生えそろう。"], answer: 3, exp: "「柔（ジュウ/ニュウ）」の音読み「ニュウ」に対し、④「乳歯（ニュウシ）」の「乳（ニュウ）」が同じ音読みです。" },
-                    { id: "2026-7", section: 1, num: 7, text: "問2 イ「彼女は寡黙で控えめな性格だ。」の「寡」と同じ読みを含むものを選べ。", options: ["① 寸暇を惜しんで研究をする。", "② その物質は無臭である。", "③ 二つの折衷案を採用する。", "④ 議会に陳情書を提出する。"], answer: 0, exp: "「寡黙（カモク）」の「寡（カ）」に対し、①「寸暇（スンカ）」の「暇（カ）」が同じ音読みです。" },
-                    { id: "2026-8", section: 1, num: 8, text: "問2 ウ「迅速な対応を心がける。」の「迅」と同じ読みを含むものを選べ。", options: ["① 自制の言葉を口にする。", "② イベントを主催する。", "③ 検察官が反対尋問を行う。", "④ 疾病の予防について話し合う。"], answer: 2, exp: "「迅速（ジンソク）」の「迅（ジン）」に対し、③「尋問（ジンモン）」の「尋（ジン）」が同じ音読みです。" },
-                    { id: "2026-9", section: 1, num: 9, text: "問2 エ「芸術家に深く私淑する。」の「淑」と同じ読みを含むものを選べ。", options: ["① 社員を縁故採用する。", "② 静粛にすることを求める。", "③ 大会の運営を委嘱する。", "④ 遠浅の海を干拓する。"], answer: 1, exp: "「私淑（シシュク）」の「淑（シュク）」に対し、②「静粛（セイシュク）」の「粛（シュク）」が同じ音読みです。" },
-                    { id: "2026-10", section: 1, num: 10, text: "問2 オ「時代とともに変遷する。」の「遷」と同じ読みを含むものを選べ。", options: ["① 怖い人に囲まれて戦慄する。", "② 恥ずかしさで頬を紅潮させる。", "③ 飛行機が上空を旋回する。", "④ 批判を謙虚に受け止める。"], answer: 2, exp: "「変遷（ヘンセン）」の「遷（セン）」に対し、③「旋回（センカイ）」の「旋（セン）」が同じ音読みです。" },
-
-                    // 大問2：語句・熟語・四字熟語・ことわざ (問11〜25)
-                    { id: "2026-11", section: 2, num: 11, text: "問1 ア「彼女はその花をこよなく愛していた。」の意味を選べ。", options: ["① とても", "② 長年", "③ 当然", "④ いつでも"], answer: 0, exp: "「こよなく」＝ひときわ・非常に・とても。" },
-                    { id: "2026-12", section: 2, num: 12, text: "問1 イ「その研究は多くの人々から指弾された。」の意味を選べ。", options: ["① 注目された", "② 非難された", "③ ほかにされた", "④ 支持された"], answer: 1, exp: "「指弾（しだん）」＝人の欠点をあげつらって非難すること。" },
-                    { id: "2026-13", section: 2, num: 13, text: "問1 ウ「インターネットの黎明期の話をする。」の意味を選べ。", options: ["① まだなかった時代", "② 始まろうとする頃", "③ 広まった時期", "④ 遠い未来"], answer: 1, exp: "「黎明期（れいめいき）」＝新しい時代が始まろうとする頃。" },
-                    { id: "2026-14", section: 2, num: 14, text: "問1 エ「彼は大勢の前で仰々しい挨拶をした。」の意味を選べ。", options: ["① 長い", "② すばらしい", "③ つまらない", "④ 大げさな"], answer: 3, exp: "「仰々しい（ぎょうぎょうしい）」＝いかめしく大げさである様子。" },
-                    { id: "2026-15", section: 2, num: 15, text: "問1 オ「試合の結果を知って溜飲が下がった。」の意味を選べ。", options: ["① 気分がすっきりした", "② 怒りがこみ上げた", "③ とても驚いた", "④ がっかりした"], answer: 0, exp: "「溜飲が下がる（りゅういんがさがる）」＝胸のつかえが下りて、気分がすっきりすること。" },
-                    { id: "2026-16", section: 2, num: 16, text: "問2 ア 四字熟語「五里（ ）中」に入る漢字を選べ。", options: ["① 無", "② 夢", "③ 霧", "④ 務"], answer: 2, exp: "「五里霧中（ごりむちゅう）」です。" },
-                    { id: "2026-17", section: 2, num: 17, text: "問2 イ 四字熟語「自暴自（ ）」に入る漢字を選べ。", options: ["① 希", "② 危", "③ 棄", "④ 旗"], answer: 2, exp: "「自暴自棄（じぼうじき）」です。" },
-                    { id: "2026-18", section: 2, num: 18, text: "問2 ウ 四字熟語「猪突（ ）進」に入る漢字を選べ。", options: ["① 猛", "② 亡", "③ 毛", "④ 綱"], answer: 0, exp: "「猪突猛進（ちょとつもうしん）」です。" },
-                    { id: "2026-19", section: 2, num: 19, text: "問2 エ 四字熟語「（ ）賞必罰」に入る漢字を選べ。", options: ["① 信", "② 心", "③ 新", "④ 親"], answer: 0, exp: "「信賞必罰（しんしょうひつばつ）」の①「信」が入ります。" },
-                    { id: "2026-20", section: 2, num: 20, text: "問2 オ 四字熟語「（ ）軍奮闘」に入る漢字を選べ。", options: ["① 個", "② 故", "③ 古", "④ 孤"], answer: 3, exp: "「孤軍奮闘（こぐんふんとう）」の④「孤」です。" },
-                    { id: "2026-21", section: 2, num: 21, text: "問3 ア「虚心坦懐」の意味を選べ。", options: ["① 他人を信用することができず疑い深い", "② 心にわだかまりがなく素直である", "③ 思いやりがあり配慮が行き届いている", "④ 落ち着いていて何事にも動じない"], answer: 1, exp: "「虚心坦懐（きしんたんかい）」＝心に何のこだわりもなく、さっぱりしていること。" },
-                    { id: "2026-22", section: 2, num: 22, text: "問3 イ「虎穴に入らずんば虎子を得ず」の意味を選べ。", options: ["① やらなくてもよいことをすると災難を招く", "② 危険を冒さなければ成功することはできない", "③ どんなことでも危険はつきものである", "④ 賢い者は危険なところには近づかない"], answer: 1, exp: "危険を冒さなければ大きな目的は達成できないということ。" },
-                    { id: "2026-23", section: 2, num: 23, text: "問3 ウ ことわざ「天網恢恢疎にして（ ）」に入る言葉を選べ。", options: ["① 許さず", "② 照らさず", "③ 漏らさず", "④ 濁さず"], answer: 2, exp: "「天網恢恢疎にして漏らさず」です。" },
-                    { id: "2026-24", section: 2, num: 24, text: "問3 エ「周到」の類義語を選べ。", options: ["① 入念", "② 大胆", "③ 短気", "④ 臆病"], answer: 0, exp: "「周到（細部まで行き届いている）」の類義語は①「入念」です。" },
-                    { id: "2026-25", section: 2, num: 25, text: "問3 オ「婉曲」の対義語を選べ。", options: ["① 丁重", "② 虚偽", "③ 緻密", "④ 露骨"], answer: 3, exp: "遠回しに表現する「婉曲」の対義語は、包み隠さず露わにする④「露骨」です。" },
-
-                    // 大問3：長文読解 (問26〜33)
-                    { id: "2026-26", section: 3, num: 26, text: "問1 a 二重傍線部「淡々と」の意味を選べ。", options: ["① 真面目に", "② 慌ただしく", "③ 落ち着いて", "④ いつまでもずっと"], answer: 2, exp: "感情を交えず、落ち着いて淡々と物事を行う様子。" },
-                    { id: "2026-27", section: 3, num: 27, text: "問1 c 二重傍線部「型破りな」の意味を選べ。", options: ["① ばかばかしい", "② 古めかしい", "③ おもしろい", "④ ふつうではない"], answer: 3, exp: "これまでの型や決まりにはまらず、ふつうではない様子。" },
-                    { id: "2026-28", section: 3, num: 28, text: "問1 (2) b 二重傍線部「訪問」と熟語の構成が同じものを選べ。", options: ["① 旅行", "② 求人", "③ 未熟", "④ 締結"], answer: 3, exp: "同義語または同等の要素の並び（訪＝たずねる、問＝とう）。" },
-                    { id: "2026-29", section: 3, num: 29, text: "問1 (3) d 二重傍線部「高価」の対義語を選べ。", options: ["① 時価", "② 廉価", "③ 減価", "④ 等価"], answer: 1, exp: "値段が安いことを表す「廉価（れんか）」が対義語です。" },
-                    { id: "2026-30", section: 3, num: 30, text: "問2 空欄 [ A ] 〜 [ D ] に入る言葉の組み合わせを選べ。", options: ["① A また / B ただし / C たとえば / D ところが", "② A しかし / B ただし / C なぜなら / D したがって", "③ A また / B さらに / C なぜなら / D ところが", "④ A しかし / B さらに / C たとえば / D したがって"], answer: 0, exp: "文脈の流れに合致する接続詞の組み合わせです。" },
-                    { id: "2026-31", section: 3, num: 31, text: "問3 空欄 [ Ｘ ] に入る内容として最もふさわしいものを選べ。", options: ["① ある部屋を見てその使用者の性格を推測するとき、その推測が部屋のカラフルさや置かれているものには影響されないこと", "② デスクやベッド周りをカラフルに彩ったり高価そうなものを置いたりしても、自分のイメージを変えるのは難しいということ", "③ 他人に好印象を与えたいときには、部屋のデザインやレイアウトよりも部屋の色や飾るものに気を配ったほうがよいということ", "④ 部屋のデザインやレイアウト、飾るものや飾り方を工夫することで、その部屋を見た人に対して特定のイメージを抱かせうること"], answer: 3, exp: "実際の使用者の性格と関連しない要素がある一方、部屋の作り込みで特定イメージを抱かせうる点についてのまとめ。" },
-                    { id: "2026-32", section: 3, num: 32, text: "問4 傍線部「ある教員の部屋に入ると、本棚には大きさが揃えられた書籍が整然と並び…」とあるが、このような部屋を見た人はどのようなイメージを抱くか。", options: ["① ふつうよりもきれいで片づいている部屋を見た人は、その部屋の使用者として仕事にはあまり熱心ではない人物をイメージしてしまいがちである。", "② オフィスやベッドルームがきれいで片づいている部屋を見た人は、その部屋の使用者がとてもまじめな性格だといったイメージを抱く傾向がある。", "③ シンプルで清潔な部屋を見た人は、部屋の使用者に対して、開放性、勤勉性、外向性の3つがどれも高い性格の人だというイメージを抱くことが多い。", "④ きれいで片づいていると手掛かりが少なく、使用者の性格をイメージできなくなってしまう。"], answer: 1, exp: "整頓された部屋＝勤勉性が高い（まじめ）という印象につながる点。" },
-                    { id: "2026-33", section: 3, num: 33, text: "問5 この文章の内容と一致するものを選べ。", options: ["① ある部屋を見たとき、その部屋の使用者の性格について抱く印象や評価の手掛かりとなるものは人によってそれぞれ異なっている。しかし、それにもかかわらずその印象や評価には共通性があり、実際の性格ともほぼ全てが一致している。", "② 複数の人々が部屋を見ただけで使用者の開放性や勤勉性について抱く印象や評価は、共通性があり実際の性格ともほぼ一致する。しかし、複数の人々の印象や評価に共通性があってもそれが実際の性格と一致しないことも多い。", "③ 私たちは部屋だけを見ると開放性や勤勉性などについて同じ印象や評価を抱く傾向がある。しかし、それはその部屋の使用者のことを何も知らない人々の間で印象や評価が共通しているだけで、実際の性格とは一致しないことが非常に多い。", "④ 部屋の中にあるさまざまなものはその部屋の使用者の性格とは無関係である。そのため、デスク周りやベッド周りなどをみただけの人々が抱く印象や評価は実際の性格と一致することもあれば全く一致しないこともある。"], answer: 1, exp: "複数人の観察者による開放性や勤勉性の印象には共通性があり、実際の性格ともある程度一致するが、外れるケースも多いという研究結果と一致。" }
-            ]
-        }
-    };
-
-    let appState = {
-        currentYear: "2026",
-        currentSecFilter: "all",
-        currentQuestionIdx: 0,
-        userAnswers: {},
-    };
-
-    let chartDist = null;
-    let chartPerf = null;
-
-    document.addEventListener("DOMContentLoaded", () => {
-        initCharts();
-        document.getElementById("select-year").value = "2026";
-        loadQuizYear("2026");
-        renderVocabCards();
-    });
-
-    function switchTab(tabName) {
-        ["quiz", "dashboard", "vocab"].forEach(tab => {
-            const sec = document.getElementById(`tab-${tab}`);
-            const btn = document.getElementById(`nav-${tab}`);
-            if (tab === tabName) {
-                sec.classList.remove("hidden");
-                btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow-sm flex items-center space-x-1";
-            } else {
-                sec.classList.add("hidden");
-                btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition text-slate-300 hover:bg-slate-800 flex items-center space-x-1";
             }
-        });
-        if (tabName === "dashboard") updateDashboardKPI();
-    }
+        };
 
-    function loadQuizYear(year) {
-        appState.currentYear = year;
-        appState.currentQuestionIdx = 0;
-        const yearData = examDatabase[year];
-        
-        document.getElementById("desktop-honbun-text").innerHTML = yearData.honbun;
-        document.getElementById("desktop-honbun-title").textContent = `${year}年度 本文`;
-        document.getElementById("mobile-modal-text").innerHTML = yearData.honbun;
-        document.getElementById("mobile-modal-title").textContent = `${year}年度 本文`;
+        let currentYear = '2023';
+        let currentQuestionIdx = 0;
+        let userAnswers = {};
+        let scoreChart = null;
 
-        renderPickerBar();
-        renderSingleQuestion();
-    }
-
-    function filterQuizSection(secVal) {
-        appState.currentSecFilter = secVal;
-        appState.currentQuestionIdx = 0;
-        renderPickerBar();
-        renderSingleQuestion();
-    }
-
-    function renderPickerBar() {
-        const pickerBar = document.getElementById("question-picker-bar");
-        pickerBar.innerHTML = "";
-        const questions = getFilteredQuestions();
-
-        questions.forEach((q, idx) => {
-            const btn = document.createElement("button");
-            const isCurrent = (idx === appState.currentQuestionIdx);
-            const userAnswer = appState.userAnswers[q.id];
-            const isAnswered = (userAnswer !== undefined);
-            const isCorrect = isAnswered && (userAnswer === q.answer);
-
-            let bgClass = "bg-slate-100 text-slate-700 border-slate-300";
-            if (isAnswered) {
-                bgClass = isCorrect ? "bg-emerald-500 text-white border-emerald-600 font-bold" : "bg-rose-500 text-white border-rose-600 font-bold";
-            }
-            if (isCurrent) {
-                btn.className = `px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 border-2 transition shadow-md scale-105 ${bgClass} ring-2 ring-indigo-500`;
-            } else {
-                btn.className = `px-2.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 border transition ${bgClass}`;
-            }
-
-            btn.textContent = `問${q.num}`;
-            btn.onclick = () => {
-                appState.currentQuestionIdx = idx;
-                renderPickerBar();
-                renderSingleQuestion();
-            };
-            pickerBar.appendChild(btn);
-        });
-    }
-
-    function getFilteredQuestions() {
-        const yearQuestions = examDatabase[appState.currentYear].questions;
-        if (appState.currentSecFilter === "all") return yearQuestions;
-        const secNum = parseInt(appState.currentSecFilter, 10);
-        return yearQuestions.filter(q => q.section === secNum);
-    }
-
-    function renderSingleQuestion() {
-        const container = document.getElementById("quiz-single-container");
-        container.innerHTML = "";
-        const questions = getFilteredQuestions();
-        if (questions.length === 0) return;
-
-        if (appState.currentQuestionIdx >= questions.length) {
-            appState.currentQuestionIdx = 0;
+        function initApp() {
+            initChart();
+            loadYear('2023');
         }
 
-        const q = questions[appState.currentQuestionIdx];
-        const userAnswer = appState.userAnswers[q.id];
-        const isAnswered = (userAnswer !== undefined);
-        const isCorrect = isAnswered && (userAnswer === q.answer);
-
-        document.getElementById("quiz-progress-text").textContent = `${appState.currentQuestionIdx + 1} / ${questions.length}問`;
-
-        const fab = document.getElementById("mobile-honbun-fab");
-        if (q.section === 3) {
-            fab.classList.remove("hidden");
-        } else {
-            fab.classList.add("hidden");
-        }
-
-        const card = document.createElement("div");
-        card.className = "bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm space-y-3";
-
-        let sectionTag = `<span class="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-0.5 rounded">大問1 漢字</span>`;
-        if (q.section === 2) sectionTag = `<span class="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-0.5 rounded">大問2 語句・熟語</span>`;
-        if (q.section === 3) sectionTag = `<span class="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-0.5 rounded">大問3 長文読解</span>`;
-
-        let optionsHTML = "";
-        q.options.forEach((optText, optIdx) => {
-            let btnStyle = "bg-slate-50 border-slate-200 hover:bg-indigo-50 text-slate-800 active:scale-[0.99]";
-            let icon = "";
-
-            if (isAnswered) {
-                if (optIdx === q.answer) {
-                    btnStyle = "bg-emerald-50 border-emerald-500 text-emerald-900 font-bold ring-1 ring-emerald-400";
-                    icon = "<span class='text-emerald-600 font-bold ml-1'>✓ 正解</span>";
-                } else if (optIdx === userAnswer) {
-                    btnStyle = "bg-rose-50 border-rose-400 text-rose-900 line-through opacity-80";
-                    icon = "<span class='text-rose-600 font-bold ml-1'>✕ 誤り</span>";
+        function loadYear(year) {
+            currentYear = year;
+            currentQuestionIdx = 0;
+            
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                if (btn.dataset.year === year) {
+                    btn.classList.remove('bg-slate-700');
+                    btn.classList.add('bg-blue-600', 'text-white');
                 } else {
-                    btnStyle = "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('bg-slate-700');
                 }
+            });
+
+            renderQuestionGrid();
+            renderQuestion();
+            updateStats();
+        }
+
+        function renderQuestion() {
+            const yearData = examData[currentYear];
+            if (!yearData || !yearData.questions.length) {
+                document.getElementById('question-title').innerText = "データが登録されていません。";
+                document.getElementById('options-container').innerHTML = "";
+                document.getElementById('passage-card').classList.add('hidden');
+                return;
             }
 
-            optionsHTML += `
-                <button onclick="handleOptionSelect('${q.id}', ${optIdx})" 
-                        ${isAnswered ? "disabled" : ""}
-                        class="w-full text-left p-3.5 sm:p-4 rounded-xl border text-xs sm:text-sm transition flex justify-between items-center font-medium min-h-[50px] ${btnStyle}">
-                    <span class="leading-snug">${optText}</span>
-                    ${icon}
-                </button>
-            `;
-        });
-
-        let expHTML = "";
-        if (isAnswered) {
-            expHTML = `
-                <div class="mt-3 p-3.5 rounded-xl border text-xs leading-relaxed space-y-1 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900"}">
-                    <div class="font-bold flex items-center justify-between">
-                        <span>${isCorrect ? "🎉 正解です！" : "❌ 不正解です"}</span>
-                        <span class="bg-white/80 px-2 py-0.5 rounded text-[11px] font-bold">正解: ${q.options[q.answer].charAt(0)}</span>
-                    </div>
-                    <p class="pt-1">${q.exp}</p>
-                </div>
-            `;
-        }
-
-        card.innerHTML = `
-            <div class="flex items-center justify-between border-b pb-2">
-                <div class="flex items-center space-x-2">
-                    ${sectionTag}
-                    <span class="text-xs font-bold text-slate-700">問題 ${q.num}</span>
-                </div>
-                <span class="text-[10px] text-slate-400 font-mono">${q.id}</span>
-            </div>
-            <div class="text-xs sm:text-sm font-bold text-slate-900 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200 whitespace-pre-wrap">
-                ${q.text}
-            </div>
-            <div class="space-y-2 pt-1">
-                ${optionsHTML}
-            </div>
-            ${expHTML}
-            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
-                <button onclick="prevQuestion()" ${appState.currentQuestionIdx === 0 ? "disabled" : ""} 
-                        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-bold text-xs rounded-lg transition">
-                    <span>← 前の問題</span>
-                </button>
-                <button onclick="nextQuestion()" ${appState.currentQuestionIdx === questions.length - 1 ? "disabled" : ""} 
-                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white font-bold text-xs rounded-lg transition shadow">
-                    <span>次の問題 →</span>
-                </button>
-            </div>
-        `;
-        container.appendChild(card);
-    }
-
-    function handleOptionSelect(qId, selectedOptIdx) {
-        appState.userAnswers[qId] = selectedOptIdx;
-        renderPickerBar();
-        renderSingleQuestion();
-        updateDashboardKPI();
-    }
-
-    function nextQuestion() {
-        const questions = getFilteredQuestions();
-        if (appState.currentQuestionIdx < questions.length - 1) {
-            appState.currentQuestionIdx++;
-            renderPickerBar();
-            renderSingleQuestion();
-        }
-    }
-
-    function prevQuestion() {
-        if (appState.currentQuestionIdx > 0) {
-            appState.currentQuestionIdx--;
-            renderPickerBar();
-            renderSingleQuestion();
-        }
-    }
-
-    function resetCurrentYearQuiz() {
-        if (confirm(`${appState.currentYear}年度の回答データをクリアしますか？`)) {
-            examDatabase[appState.currentYear].questions.forEach(q => delete appState.userAnswers[q.id]);
-            renderPickerBar();
-            renderSingleQuestion();
-            updateDashboardKPI();
-        }
-    }
-
-    function openMobileHonbunModal() { document.getElementById("mobile-honbun-modal").classList.remove("hidden"); }
-    function closeMobileHonbunModal() { document.getElementById("mobile-honbun-modal").classList.add("hidden"); }
-
-    function initCharts() {
-        const ctxDist = document.getElementById("chartSectionDistribution").getContext("2d");
-        chartDist = new Chart(ctxDist, {
-            type: 'doughnut',
-            data: {
-                labels: ['大問1: 漢字 (10問)', '大問2: 語句 (15問)', '大問3: 長文 (8問)'],
-                datasets: [{ data: [10, 15, 8], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
-        });
-
-        const ctxPerf = document.getElementById("chartYearlyPerformance").getContext("2d");
-        chartPerf = new Chart(ctxPerf, {
-            type: 'bar',
-            data: {
-                labels: ['2022年', '2023年', '2025年', '2026年'],
-                datasets: [
-                    { label: '正解', data: [0,0,0,0], backgroundColor: '#10b981' },
-                    { label: '不正解', data: [0,0,0,0], backgroundColor: '#f43f5e' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true, ticks: { font: { size: 10 } } },
-                    y: { stacked: true, beginAtZero: true, max: 33, ticks: { font: { size: 10 } } }
-                },
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+            const q = yearData.questions[currentQuestionIdx];
+            
+            // Passage
+            if (q.passageId && yearData.passages[q.passageId]) {
+                document.getElementById('passage-card').classList.remove('hidden');
+                document.getElementById('passage-title').innerText = "【長文本文】";
+                document.getElementById('passage-text').innerHTML = yearData.passages[q.passageId];
+            } else {
+                document.getElementById('passage-card').classList.add('hidden');
             }
-        });
-    }
 
-    function updateDashboardKPI() {
-        let totalAns = 0, totalCorrect = 0;
+            // Question
+            document.getElementById('question-category').innerText = q.category;
+            document.getElementById('question-number').innerText = `問題 ${currentQuestionIdx + 1} / ${yearData.questions.length}`;
+            document.getElementById('question-title').innerText = q.title;
 
-        Object.keys(examDatabase).forEach(y => {
-            examDatabase[y].questions.forEach(q => {
-                const ans = appState.userAnswers[q.id];
+            // Options
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            const answered = userAnswers[q.id];
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3.5 rounded-lg border text-sm transition flex justify-between items-center ";
+                
+                if (answered !== undefined) {
+                    if (idx === q.correct) {
+                        btn.classList.add('border-green-500', 'bg-green-50', 'text-green-900', 'font-semibold');
+                        btn.innerHTML = `<span>${opt}</span><span class="text-green-600 font-bold">✓ 正解</span>`;
+                    } else if (idx === answered) {
+                        btn.classList.add('border-red-500', 'bg-red-50', 'text-red-900');
+                        btn.innerHTML = `<span>${opt}</span><span class="text-red-600 font-bold">✕ 選択した誤答</span>`;
+                    } else {
+                        btn.classList.add('border-slate-200', 'opacity-60');
+                        btn.innerText = opt;
+                    }
+                } else {
+                    btn.classList.add('border-slate-200', 'hover:border-blue-400', 'hover:bg-slate-50');
+                    btn.innerText = opt;
+                    btn.onclick = () => selectOption(q.id, idx);
+                }
+                optionsContainer.appendChild(btn);
+            });
+
+            // Explanation
+            const expBox = document.getElementById('explanation-box');
+            if (answered !== undefined) {
+                expBox.classList.remove('hidden');
+                const isCorrect = answered === q.correct;
+                expBox.className = `p-4 rounded-lg border mt-4 text-sm leading-relaxed ${isCorrect ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900'}`;
+                expBox.innerHTML = `
+                    <div class="font-bold mb-1">${isCorrect ? '🎉 正解です！' : '✕ 不正解です'}</div>
+                    <div>${q.explanation}</div>
+                `;
+            } else {
+                expBox.classList.add('hidden');
+            }
+
+            // Navigation Buttons
+            document.getElementById('prev-btn').disabled = currentQuestionIdx === 0;
+            document.getElementById('next-btn').disabled = currentQuestionIdx === yearData.questions.length - 1;
+        }
+
+        function selectOption(qId, optionIdx) {
+            userAnswers[qId] = optionIdx;
+            renderQuestion();
+            renderQuestionGrid();
+            updateStats();
+        }
+
+        function navigateQuestion(direction) {
+            const yearData = examData[currentYear];
+            if (!yearData) return;
+            const newIdx = currentQuestionIdx + direction;
+            if (newIdx >= 0 && newIdx < yearData.questions.length) {
+                currentQuestionIdx = newIdx;
+                renderQuestion();
+            }
+        }
+
+        function renderQuestionGrid() {
+            const grid = document.getElementById('question-grid');
+            grid.innerHTML = '';
+            const yearData = examData[currentYear];
+            if (!yearData) return;
+
+            yearData.questions.forEach((q, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "h-9 w-9 rounded-lg text-xs font-bold transition flex items-center justify-center ";
+                const answered = userAnswers[q.id];
+
+                if (idx === currentQuestionIdx) {
+                    btn.classList.add('ring-2', 'ring-blue-600', 'ring-offset-1');
+                }
+
+                if (answered !== undefined) {
+                    if (answered === q.correct) {
+                        btn.classList.add('bg-green-500', 'text-white');
+                    } else {
+                        btn.classList.add('bg-red-500', 'text-white');
+                    }
+                } else {
+                    btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+                }
+
+                btn.innerText = idx + 1;
+                btn.onclick = () => {
+                    currentQuestionIdx = idx;
+                    renderQuestion();
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function updateStats() {
+            const yearData = examData[currentYear];
+            if (!yearData) return;
+
+            let answeredCount = 0;
+            let correctCount = 0;
+
+            yearData.questions.forEach(q => {
+                const ans = userAnswers[q.id];
                 if (ans !== undefined) {
-                    totalAns++;
-                    if (ans === q.answer) { totalCorrect++; }
+                    answeredCount++;
+                    if (ans === q.correct) correctCount++;
                 }
             });
-        });
 
-        document.getElementById("kpi-answered").textContent = `${totalAns} 問`;
-        document.getElementById("kpi-correct").textContent = `${totalCorrect} 問`;
-        document.getElementById("kpi-accuracy").textContent = `${totalAns > 0 ? ((totalCorrect / totalAns) * 100).toFixed(1) : "0.0"} %`;
-    }
+            const total = yearData.questions.length;
+            const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
-    function renderVocabCards() {
-        const grid = document.getElementById("vocab-grid");
-        const searchVal = document.getElementById("vocab-search").value.toLowerCase();
-        const catFilter = document.getElementById("vocab-filter-cat").value;
-        grid.innerHTML = "";
+            document.getElementById('answered-count').innerText = `${answeredCount} / ${total}`;
+            document.getElementById('accuracy-rate').innerText = `${accuracy}%`;
 
-        let allQuestions = [];
-        Object.keys(examDatabase).forEach(y => {
-            examDatabase[y].questions.forEach(q => {
-                if (q.section === 1 || q.section === 2) allQuestions.push({ ...q, year: y });
+            if (scoreChart) {
+                scoreChart.data.datasets[0].data = [correctCount, answeredCount - correctCount, total - answeredCount];
+                scoreChart.update();
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            scoreChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['正解', '不正解', '未解答'],
+                    datasets: [{
+                        data: [0, 0, 1],
+                        backgroundColor: ['#22c55e', '#ef4444', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    cutout: '70%'
+                }
             });
-        });
+        }
 
-        const filtered = allQuestions.filter(q => {
-            const matchesCat = (catFilter === "all") || (catFilter === String(q.section));
-            const matchesSearch = q.text.toLowerCase().includes(searchVal) || q.exp.toLowerCase().includes(searchVal);
-            return matchesCat && matchesSearch;
-        });
-
-        filtered.forEach(q => {
-            const card = document.createElement("div");
-            card.className = "bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-1.5 text-xs";
-            const secTag = q.section === 1 ? '<span class="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[10px]">漢字</span>' : '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">語句</span>';
-            card.innerHTML = `
-                <div class="flex items-center justify-between border-b pb-1">
-                    <div>${secTag} <span class="font-bold text-slate-500">${q.year}年 問${q.num}</span></div>
-                    <span class="font-bold text-indigo-600">正解: ${q.options[q.answer].charAt(0)}</span>
-                </div>
-                <div class="font-bold text-slate-800 text-xs whitespace-pre-wrap">${q.text}</div>
-                <div class="bg-slate-50 p-2 rounded border border-slate-200 text-slate-600 text-[11px] leading-relaxed">${q.exp}</div>
-            `;
-            grid.appendChild(card);
-        });
-    }
-</script>
+        window.onload = initApp;
+    </script>
 </body>
 </html>
